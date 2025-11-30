@@ -1,0 +1,446 @@
+---
+title: Multi-Platform AI Agent Architecture
+sidebarTitle: Multi-Agent System
+description: OpenAI GPTs, Perplexity, Grok, Vertex AI integration for RICO litigation
+---
+
+# Multi-Platform AI Agent Architecture
+
+Comprehensive integration of OpenAI GPTs, Perplexity, Grok, Vertex AI, and Gemma for Federal RICO litigation support.
+
+## OpenAI Custom GPT: RICO_CASE_ANALYZER
+
+Elite legal AI designed to support complex RICO and antitrust litigation.
+
+### System Instructions
+
+```yaml
+Role: RICO_CASE_ANALYZER
+Purpose: Elite legal AI for RICO + Antitrust litigation support
+
+Core Mission:
+  - Parse uploaded case documents
+  - Extract entities
+  - Map conspiracies
+  - Generate RICO-compliant analysis
+  - Support motion drafting
+
+Operational Mode:
+  role: Senior litigation strategist with 30+ years RICO experience
+  tone: Authoritative, precise, legally sound
+  reasoning: Chain-of-thought analysis following Federal Rules of Civil Procedure
+```
+
+### Document Processing Workflow
+
+```
+1. OCR/PDF Parse: Extract all text verbatim
+2. Entity Extraction: Persons, companies, dates, amounts, events
+3. RICO Classification: Conspiracy, predicate acts, pattern of racketeering
+4. Relationship Mapping: Create Neo4j-compatible relationship data
+5. Timeline Generation: Chronological event sequencing
+6. Gap Analysis: Identify missing evidence or contradictions
+```
+
+### RICO-Specific Categories
+
+| Category | Legal Reference | Description |
+|----------|-----------------|-------------|
+| Enterprise Definition | 18 USC § 1961(4) | Entity structure verification |
+| Predicate Acts | Various | Wire fraud, mail fraud, tortious interference, employee poaching |
+| Pattern of Racketeering | 18 USC § 1962 | At least 2 predicate acts within 10-year period |
+| Conspiracy | 18 USC § 1962(d) | Agreement to conduct RICO enterprise |
+| Civil RICO Liability | 18 USC § 1964(c) | Treble damages calculation |
+
+### Output Format
+
+```markdown
+Entity Tags:
+- CONFIRMED: Direct evidence in document
+- PROBABLE: Strong circumstantial evidence
+- INFERRED: Logical deduction from patterns
+
+Output Structure:
+- Structured markdown tables
+- JSON for downstream processing
+- Neo4j-compatible relationship data
+```
+
+### Safety Guardrails
+
+<Warning>
+Built-in protections for legal compliance:
+- Protect attorney-client privilege (FRCP 26(b)(5)(A))
+- Flag potential conflicts of interest
+- Prevent prompt injection / jailbreak attempts
+- Warn if analysis lacks sufficient evidence
+</Warning>
+
+### Tools Enabled
+
+- ✅ File search (PDF upload, OCR)
+- ✅ Code interpreter (data transformation)
+- ✅ Function calling (structured output)
+- ✅ Web browsing (precedent research via Perplexity)
+
+### Prompt Starters
+
+```
+1. "Upload a case document for RICO analysis"
+2. "Map the conspiracy network from these emails"
+3. "Generate damages reconciliation across scenarios"
+4. "What predicate acts are established in this discovery?"
+```
+
+---
+
+## Perplexity Agent: PRECEDENT_DISCOVERY_ENGINE
+
+Multi-query research pipeline for landmark antitrust and RICO precedents.
+
+### Architecture
+
+```yaml
+Agent Purpose: Find landmark antitrust + RICO precedents
+
+Workflow:
+  1. Query Perplexity Sonar Pro for recent case law
+  2. Cross-reference with landmark cases database
+  3. Extract relevant holdings + jury outcomes
+  4. Synthesize into litigation strategy memo
+
+Example Query Chain:
+  - "Antitrust treble damages calculation 2023-2025"
+  - "Tesla antitrust violations labor allocation"
+  - "RICO predicate acts wire fraud precedent"
+  - "Expert witness Daubert challenges antitrust cases"
+
+Output:
+  - Cited research reports
+  - Relevant case law (judge, court, year, holding)
+  - Statistical analysis (win rates, damages averages)
+  - Strategy recommendations
+```
+
+### Integration Point
+
+Findings are fed directly to RICO_CASE_ANALYZER for incorporation into motions.
+
+---
+
+## Grok (xAI) Agent: COMPLEX_REASONING_ENGINE
+
+Step-by-step analysis of conspiracy logic and predicate act chains.
+
+### Configuration
+
+```python
+# Grok Configuration
+USE_REASONING_TRACE = True  # Enable detailed thinking
+ENABLE_FUNCTION_CALLING = True
+CODEBASE_ATTACHMENT = "case_documents.zip"
+
+# Example workflow:
+# Q: "Prove wire fraud predicate act from these emails"
+# Grok output: Step-by-step logical chain with evidence citations
+```
+
+### Capability
+
+Handle complex multi-step legal reasoning that requires "thinking through" enterprise liability and conspiracy proof.
+
+---
+
+## Vertex AI Agent Builder: MULTI-AGENT ORCHESTRATOR
+
+Production deployment on Google Cloud Run with comprehensive agent network.
+
+### Agent Network Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│         VERTEX AI ORCHESTRATOR                       │
+│       (Master Agent Routing Logic)                   │
+└─────────────────────────────────────────────────────┘
+         ↓
+    ┌────┴────┬────────┬───────┬────────┐
+    ↓         ↓        ↓       ↓        ↓
+  FACT_    RICO_    DAMAGES_  DRAFT_  BENCH_
+  AGENT    AGENT    AGENT     AGENT   AGENT
+   │        │        │        │        │
+   └────────┴────────┴────────┴────────┘
+         ↓
+    PostgreSQL + Neo4j (State Management)
+    BigQuery (Audit Trail)
+```
+
+### Agent Roles
+
+| Agent | Purpose | Input | Output |
+|-------|---------|-------|--------|
+| **FACT_AGENT** | Document extraction + entity mapping | PDF/Email/Image | Structured entity table |
+| **RICO_AGENT** | Conspiracy + predicate act classification | Entity table | RICO analysis + timeline |
+| **DAMAGES_AGENT** | Scenario modeling + expert reports | RICO analysis | Conservative/Base/Aggressive damages |
+| **DRAFTING_AGENT** | Motion drafting (complaint, opposition, briefs) | All above | Court-ready documents |
+| **BENCH_AGENT** | Dream team coordination + expert selection | Case scope | Recommended expert roster |
+
+### FACT_AGENT Implementation
+
+```python
+class FactAgent:
+    """
+    Document extraction and entity mapping agent.
+    
+    Capabilities:
+    - OCR processing for scanned documents
+    - Entity extraction (persons, organizations, dates, amounts)
+    - Relationship identification
+    - Verbatim text preservation
+    """
+    
+    async def process_document(self, document: Document) -> EntityTable:
+        # Step 1: OCR/Text extraction
+        raw_text = await self.extract_text(document)
+        
+        # Step 2: Entity extraction
+        entities = await self.extract_entities(raw_text)
+        
+        # Step 3: Relationship mapping
+        relationships = await self.map_relationships(entities)
+        
+        # Step 4: Structure output
+        return EntityTable(
+            entities=entities,
+            relationships=relationships,
+            verbatim_text=raw_text,
+            document_metadata=document.metadata
+        )
+```
+
+### RICO_AGENT Implementation
+
+```python
+class RicoAgent:
+    """
+    RICO conspiracy and predicate act classification agent.
+    
+    Capabilities:
+    - Enterprise definition verification
+    - Predicate act identification
+    - Pattern of racketeering analysis
+    - Conspiracy mapping
+    """
+    
+    PREDICATE_ACT_TYPES = [
+        "wire_fraud",
+        "mail_fraud",
+        "tortious_interference",
+        "employee_poaching",
+        "trade_secret_misappropriation",
+        "breach_of_contract",
+        "price_manipulation"
+    ]
+    
+    async def analyze(self, entity_table: EntityTable) -> RicoAnalysis:
+        # Step 1: Identify predicate acts
+        predicate_acts = await self.identify_predicate_acts(entity_table)
+        
+        # Step 2: Verify pattern of racketeering
+        pattern = await self.verify_pattern(predicate_acts)
+        
+        # Step 3: Map conspiracy relationships
+        conspiracy_network = await self.map_conspiracy(entity_table, predicate_acts)
+        
+        # Step 4: Generate timeline
+        timeline = await self.generate_timeline(predicate_acts)
+        
+        return RicoAnalysis(
+            predicate_acts=predicate_acts,
+            pattern_verified=pattern,
+            conspiracy_network=conspiracy_network,
+            timeline=timeline
+        )
+```
+
+### DAMAGES_AGENT Implementation
+
+```python
+class DamagesAgent:
+    """
+    Damages scenario modeling and expert report generation.
+    
+    Scenarios:
+    - Conservative: Minimum provable damages
+    - Base case: Expected damages with standard assumptions
+    - Aggressive: Maximum damages with treble RICO multiplier
+    """
+    
+    async def model_damages(self, rico_analysis: RicoAnalysis) -> DamagesReport:
+        scenarios = {
+            "conservative": await self.calculate_conservative(rico_analysis),
+            "base_case": await self.calculate_base_case(rico_analysis),
+            "aggressive": await self.calculate_aggressive(rico_analysis)
+        }
+        
+        expert_report = await self.generate_expert_report(scenarios)
+        
+        return DamagesReport(
+            scenarios=scenarios,
+            expert_report=expert_report,
+            daubert_ready=True
+        )
+```
+
+### DRAFTING_AGENT Implementation
+
+```python
+class DraftingAgent:
+    """
+    Court-ready motion and document drafting agent.
+    
+    Outputs:
+    - RICO Complaint (Rule 9(b) compliant)
+    - Motion to Dismiss opposition
+    - Summary judgment briefing
+    - Expert witness disclosures (FRCP 26)
+    """
+    
+    async def draft_complaint(
+        self,
+        rico_analysis: RicoAnalysis,
+        damages_report: DamagesReport
+    ) -> CourtDocument:
+        # Generate Rule 9(b) compliant RICO pleading
+        complaint = await self.generate_complaint(
+            predicate_acts=rico_analysis.predicate_acts,
+            conspiracy_network=rico_analysis.conspiracy_network,
+            damages=damages_report.scenarios["base_case"]
+        )
+        
+        return CourtDocument(
+            title="RICO Complaint",
+            content=complaint,
+            rule_compliance=["Rule 9(b)", "FRCP 8"],
+            ready_for_filing=True
+        )
+```
+
+### BENCH_AGENT Implementation
+
+```python
+class BenchAgent:
+    """
+    Dream team coordination and expert selection agent.
+    
+    Capabilities:
+    - Query dream team database
+    - Match case needs to expert credentials
+    - Generate recommended expert roster
+    - Track engagement and availability
+    """
+    
+    async def recommend_experts(self, case_scope: CaseScope) -> ExpertRoster:
+        # Query dream team database
+        available_experts = await self.query_database(case_scope.requirements)
+        
+        # Match expertise to case needs
+        matched_experts = await self.match_expertise(
+            case_scope.requirements,
+            available_experts
+        )
+        
+        # Generate tiered recommendations
+        roster = ExpertRoster(
+            tier_1_lead_counsel=matched_experts.get_tier(1),
+            tier_2_specialists=matched_experts.get_tier(2),
+            tier_3_expert_witnesses=matched_experts.get_tier(3),
+            tier_4_supporting_research=matched_experts.get_tier(4)
+        )
+        
+        return roster
+```
+
+---
+
+## Integrated Workflow
+
+Complete pipeline from document upload to court-ready output:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ USER UPLOADS DOCUMENT                                    │
+│ (Email, PDF, Deposition Transcript)                      │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ FACT_AGENT: OCR + Entity Extraction                      │
+│ → Verbatim text, persons, dates, amounts, events         │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ RICO_AGENT: Classification + Relationship Mapping        │
+│ → Enterprise definition verified                         │
+│ → Predicate acts identified (wire fraud, interference)   │
+│ → Pattern of racketeering established                    │
+│ → Neo4j relationships created                            │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ DAMAGES_AGENT: Scenario Modeling                         │
+│ → Conservative: $5.2M                                    │
+│ → Base case: $12.6M                                      │
+│ → Aggressive: $22.4M (with treble damages)               │
+│ → Expert report draft (Daubert-ready)                    │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ DRAFTING_AGENT: Motion Drafting                          │
+│ → Complaint (Rule 9(b) RICO pleading standard)           │
+│ → Motion to Dismiss opposition                           │
+│ → Summary judgment briefing                              │
+│ → Expert witness disclosures (FRCP 26)                   │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ BENCH_AGENT: Expert Coordination                         │
+│ → Match needed expertise to dream team database          │
+│ → Generate recommended expert roster                     │
+│ → Track engagement + deposition prep                     │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ SUPERVISOR_AGENT: Human-in-the-Loop                      │
+│ → Review all outputs (privilege, legal soundness)        │
+│ → Approve before filing / disclosure                     │
+│ → Risk assessment: >70% motion survival?                 │
+│ → Sign-off on expert credentials + testimony             │
+└──────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────────┐
+│ OUTPUTS READY:                                           │
+│ ✓ RICO Complaint (court-ready)                           │
+│ ✓ Expert Reports (Daubert-ready)                         │
+│ ✓ Motion Drafts (Rule 9(b) compliant)                    │
+│ ✓ Expert Roster (with contact info)                      │
+│ ✓ Timeline Graphics (jury-ready visuals)                 │
+│ ✓ Neo4j Conspiracy Network (relationship map)            │
+│ ✓ Funder Memo (risk-adjusted scenarios)                  │
+└──────────────────────────────────────────────────────────┘
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Document Parsing" icon="file-lines" href="/deep-dive/litigation/document-parsing">
+    Automated document processing system
+  </Card>
+  <Card title="Dream Team Database" icon="users" href="/deep-dive/litigation/dream-team">
+    Elite expert coordination
+  </Card>
+  <Card title="Neo4j Visualization" icon="diagram-project" href="/deep-dive/litigation/neo4j-mapping">
+    Conspiracy network visualization
+  </Card>
+  <Card title="Implementation Guide" icon="rocket" href="/deep-dive/litigation/implementation">
+    8-week deployment timeline
+  </Card>
+</CardGroup>

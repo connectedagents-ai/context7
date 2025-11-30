@@ -1,0 +1,599 @@
+---
+title: Neo4j Conspiracy Mapping
+sidebarTitle: Neo4j Mapping
+description: Graph database schema for RICO conspiracy visualization
+---
+
+# Neo4j Conspiracy Mapping
+
+Comprehensive graph database schema and visualization for RICO conspiracy networks.
+
+## Graph Schema Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    NEO4J GRAPH SCHEMA                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌──────────┐     WORKS_FOR      ┌──────────────┐             │
+│   │  Person  │──────────────────▶│ Organization │             │
+│   └──────────┘                    └──────────────┘             │
+│        │                                │                       │
+│        │ CONSPIRES_WITH                 │ OWNED_BY              │
+│        ▼                                ▼                       │
+│   ┌──────────┐     INVOLVES       ┌──────────────┐             │
+│   │  Person  │◀────────────────── │    Event     │             │
+│   └──────────┘                    └──────────────┘             │
+│        │                                │                       │
+│        │ PERPETRATES                    │ EVIDENCED_BY          │
+│        ▼                                ▼                       │
+│   ┌──────────────┐   SUPPORTS     ┌──────────────┐             │
+│   │Predicate_Act │──────────────▶│  RICO_Claim  │             │
+│   └──────────────┘                └──────────────┘             │
+│        │                                                        │
+│        │ CONTAINED_IN                                           │
+│        ▼                                                        │
+│   ┌──────────────┐                                             │
+│   │   Document   │                                             │
+│   └──────────────┘                                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Node Types
+
+### Person Node
+
+```cypher
+CREATE (p:Person {
+  id: "person_001",
+  name: "Robert Bailey",
+  role: "Sales Manager",
+  affiliation: "Tesla Inc.",
+  first_mentioned: date("2022-06-07"),
+  role_in_conspiracy: "Co-conspirator",
+  confidence_level: "CONFIRMED",
+  metadata: {
+    email: "robert.bailey@tesla.com",
+    department: "Sales",
+    hire_date: date("2020-01-15")
+  }
+})
+```
+
+#### Person Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | String | Unique identifier |
+| `name` | String | Full name |
+| `role` | String | Job title/position |
+| `affiliation` | String | Primary organization |
+| `first_mentioned` | Date | First appearance in documents |
+| `role_in_conspiracy` | String | Primary Defendant, Co-conspirator, Witness |
+| `confidence_level` | String | CONFIRMED, PROBABLE, INFERRED |
+
+### Organization Node
+
+```cypher
+CREATE (o:Organization {
+  id: "org_001",
+  name: "Tesla Inc.",
+  type: "Corporation",
+  role_in_conspiracy: "Primary Defendant",
+  industry: "Electric Vehicles / Energy",
+  headquarters: "Austin, TX",
+  stock_symbol: "TSLA",
+  metadata: {
+    founded: date("2003-07-01"),
+    employees: 140000,
+    market_cap: "$800B"
+  }
+})
+```
+
+### Event Node
+
+```cypher
+CREATE (e:Event {
+  id: "event_001",
+  date: date("2022-08-15"),
+  type: "Lead Diversion",
+  description: "Email directing sales leads away from Connected Solar",
+  location: "Austin, TX",
+  significance: "HIGH",
+  predicate_act_potential: true,
+  metadata: {
+    witnesses: ["Robert Bailey", "John Smith"],
+    communication_method: "Email",
+    evidence_ids: ["DOC-42", "DOC-43"]
+  }
+})
+```
+
+### Predicate_Act Node
+
+```cypher
+CREATE (pa:Predicate_Act {
+  id: "predicate_001",
+  type: "Wire Fraud",
+  statute: "18 USC § 1343",
+  date: date("2022-08-15"),
+  description: "Fraudulent email communication to divert business",
+  evidence_strength: "STRONG",
+  elements_satisfied: [
+    "scheme_to_defraud",
+    "material_misrepresentation",
+    "interstate_wire_communication",
+    "intent_to_defraud"
+  ],
+  confidence: 0.92,
+  metadata: {
+    evidence_ids: ["DOC-42"],
+    perpetrators: ["Robert Bailey"],
+    victims: ["Connected Solar LLC"]
+  }
+})
+```
+
+### RICO_Claim Node
+
+```cypher
+CREATE (r:RICO_Claim {
+  id: "claim_001",
+  claim_type: "Civil RICO",
+  statute: "18 USC § 1962(c), (d)",
+  enterprise: "Tesla Inc. and co-conspirators",
+  pattern_established: true,
+  predicate_act_count: 7,
+  damages_claimed: 22400000,
+  treble_damages: 67200000,
+  filing_date: date("2026-01-15"),
+  status: "DRAFT"
+})
+```
+
+### Document Node
+
+```cypher
+CREATE (d:Document {
+  id: "DOC-42",
+  type: "Email",
+  date: date("2022-08-15"),
+  author: "Robert Bailey",
+  recipients: ["John Smith", "Tesla Sales Team"],
+  subject: "Lead Assignment Update",
+  file_path: "s3://evidence-bucket/emails/DOC-42.pdf",
+  verbatim_text: "[Full email content preserved]",
+  processing_status: "ANALYZED",
+  privilege_status: "NOT_PRIVILEGED",
+  metadata: {
+    page_count: 2,
+    word_count: 450,
+    extraction_confidence: 0.98
+  }
+})
+```
+
+---
+
+## Edge Types (Relationships)
+
+### Employment Relationships
+
+```cypher
+// Person works for Organization
+CREATE (p:Person)-[:WORKS_FOR {
+  start_date: date("2020-01-15"),
+  end_date: null,
+  position: "Sales Manager",
+  department: "Sales",
+  reporting_to: "VP Sales"
+}]->(o:Organization)
+
+// Organization subsidiary of Organization
+CREATE (o1:Organization)-[:SUBSIDIARY_OF {
+  ownership_percentage: 100,
+  since: date("2019-01-01")
+}]->(o2:Organization)
+```
+
+### Conspiracy Relationships
+
+```cypher
+// Person conspires with Person
+CREATE (p1:Person)-[:CONSPIRES_WITH {
+  evidence_ids: ["DOC-42", "DOC-48", "DOC-71"],
+  first_contact: date("2022-06-07"),
+  conspiracy_role: "Lead Coordinator",
+  confidence: 0.89
+}]->(p2:Person)
+
+// Organization participates in conspiracy
+CREATE (o:Organization)-[:PARTICIPATES_IN {
+  role: "Primary Enterprise",
+  liability: "Direct",
+  evidence_ids: ["DOC-42", "DOC-48"]
+}]->(c:Conspiracy)
+```
+
+### Event Relationships
+
+```cypher
+// Event involves Person
+CREATE (e:Event)-[:INVOLVES {
+  role: "Perpetrator",
+  action_taken: "Sent fraudulent email",
+  evidence_id: "DOC-42"
+}]->(p:Person)
+
+// Event targets Organization
+CREATE (e:Event)-[:TARGETS {
+  harm_type: "Lost Revenue",
+  estimated_damage: 150000
+}]->(o:Organization)
+
+// Event occurs at Location
+CREATE (e:Event)-[:OCCURS_AT {
+  address: "3500 Deer Creek Rd, Palo Alto, CA"
+}]->(l:Location)
+```
+
+### Evidence Relationships
+
+```cypher
+// Document evidences Event
+CREATE (d:Document)-[:EVIDENCES {
+  relevance: "DIRECT",
+  page_references: [1, 2],
+  excerpt: "...directing leads away from Connected Solar..."
+}]->(e:Event)
+
+// Document contains Predicate_Act
+CREATE (d:Document)-[:CONTAINS {
+  predicate_act_type: "Wire Fraud",
+  element_references: {
+    scheme_to_defraud: "paragraph 2",
+    material_misrepresentation: "paragraph 3"
+  }
+}]->(pa:Predicate_Act)
+```
+
+### RICO Relationships
+
+```cypher
+// Predicate_Act supports RICO_Claim
+CREATE (pa:Predicate_Act)-[:SUPPORTS {
+  element_satisfied: "Pattern of Racketeering",
+  weight: 0.95,
+  date: pa.date
+}]->(r:RICO_Claim)
+
+// Person liable under RICO_Claim
+CREATE (p:Person)-[:LIABLE_UNDER {
+  liability_type: "Direct",
+  role: "Participant in Conduct of Enterprise",
+  damages_exposure: 22400000
+}]->(r:RICO_Claim)
+```
+
+---
+
+## Visualization Queries
+
+### Conspiracy Network Visualization
+
+```cypher
+// Full conspiracy network with all connections
+MATCH path = (defendant:Person)-[:CONSPIRES_WITH*1..3]-(coconspirator:Person)
+WHERE defendant.role_in_conspiracy = 'Primary Defendant'
+WITH path, nodes(path) as conspirators, relationships(path) as connections
+RETURN path, conspirators, connections
+ORDER BY length(path) DESC
+LIMIT 100
+```
+
+### Predicate Act Chain
+
+```cypher
+// Predicate acts supporting RICO claim with evidence chain
+MATCH (pa:Predicate_Act)-[:SUPPORTS]->(claim:RICO_Claim)
+MATCH (pa)<-[:PERPETRATES]-(actor:Person)
+MATCH (pa)<-[:CONTAINS]-(doc:Document)
+RETURN pa.type as predicate_act_type,
+       pa.date as date,
+       actor.name as perpetrator,
+       doc.id as evidence_id,
+       claim.id as claim_id
+ORDER BY pa.date ASC
+```
+
+### Timeline Visualization
+
+```cypher
+// Chronological event timeline with actors
+MATCH (e:Event)-[:INVOLVES]->(p:Person)
+MATCH (e)<-[:EVIDENCES]-(d:Document)
+OPTIONAL MATCH (e)-[:RESULTS_IN]->(pa:Predicate_Act)
+RETURN e.date as date,
+       e.type as event_type,
+       e.description as description,
+       collect(DISTINCT p.name) as participants,
+       collect(DISTINCT d.id) as evidence,
+       pa.type as predicate_act
+ORDER BY e.date ASC
+```
+
+### Damages Flow Visualization
+
+```cypher
+// Financial impact flow from events to damages
+MATCH (e:Event)-[:CAUSES]->(d:Damage)
+MATCH (e)-[:INVOLVES]->(p:Person)
+MATCH (d)-[:AFFECTS]->(v:Organization {role_in_conspiracy: 'Plaintiff'})
+RETURN e.date as date,
+       e.type as event_type,
+       d.amount as damage_amount,
+       d.category as damage_category,
+       collect(p.name) as responsible_parties
+ORDER BY d.amount DESC
+```
+
+---
+
+## Jury-Ready Visualizations
+
+### Conspiracy Web (Interactive)
+
+```python
+from neo4j import GraphDatabase
+import pyvis
+
+class ConspiracyVisualizer:
+    """
+    Generate jury-ready conspiracy network visualizations.
+    """
+    
+    def __init__(self, uri: str, auth: tuple):
+        self.driver = GraphDatabase.driver(uri, auth=auth)
+    
+    def generate_conspiracy_web(self, output_file: str = "conspiracy.html"):
+        """
+        Create interactive HTML visualization of conspiracy network.
+        """
+        with self.driver.session() as session:
+            result = session.run("""
+                MATCH (p1:Person)-[r:CONSPIRES_WITH]->(p2:Person)
+                RETURN p1.name as source, 
+                       p2.name as target,
+                       r.evidence_ids as evidence,
+                       r.confidence as confidence
+            """)
+            
+            net = pyvis.Network(height="800px", width="100%")
+            
+            for record in result:
+                net.add_node(record["source"], 
+                            color="red" if self._is_defendant(record["source"]) else "blue")
+                net.add_node(record["target"],
+                            color="red" if self._is_defendant(record["target"]) else "blue")
+                net.add_edge(record["source"], 
+                            record["target"],
+                            title=f"Evidence: {record['evidence']}",
+                            width=record["confidence"] * 5)
+            
+            net.save_graph(output_file)
+            return output_file
+    
+    def generate_timeline_graphic(self, output_file: str = "timeline.html"):
+        """
+        Create chronological timeline of predicate acts.
+        """
+        with self.driver.session() as session:
+            result = session.run("""
+                MATCH (pa:Predicate_Act)-[:SUPPORTS]->(r:RICO_Claim)
+                RETURN pa.date as date,
+                       pa.type as type,
+                       pa.description as description,
+                       pa.evidence_strength as strength
+                ORDER BY pa.date ASC
+            """)
+            
+            # Generate timeline HTML
+            timeline_html = self._generate_timeline_html(list(result))
+            
+            with open(output_file, 'w') as f:
+                f.write(timeline_html)
+            
+            return output_file
+```
+
+### Example Visualization Output
+
+```
+CONSPIRACY NETWORK VISUALIZATION
+================================
+
+        ┌─────────────────┐
+        │  TESLA INC.     │  (Primary Defendant)
+        │  [Enterprise]   │
+        └────────┬────────┘
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+    ▼            ▼            ▼
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│ Robert  │ │  John   │ │  Sarah  │
+│ Bailey  │ │  Smith  │ │  Jones  │
+│ [Sales] │ │  [HR]   │ │  [Ops]  │
+└────┬────┘ └────┬────┘ └────┬────┘
+     │           │           │
+     └─────┬─────┴─────┬─────┘
+           │           │
+           ▼           ▼
+    ┌─────────────────────────┐
+    │   PREDICATE ACTS        │
+    │   - Wire Fraud (5)      │
+    │   - Employee Poaching(3)│
+    │   - Tortious Int. (2)   │
+    └─────────────────────────┘
+           │
+           ▼
+    ┌─────────────────────────┐
+    │   RICO CLAIM            │
+    │   Pattern: ESTABLISHED  │
+    │   Damages: $22.4M       │
+    │   Treble: $67.2M        │
+    └─────────────────────────┘
+```
+
+---
+
+## Production Deployment
+
+### Neo4j Aura Configuration
+
+```yaml
+# neo4j-aura-config.yaml
+deployment:
+  tier: Enterprise
+  region: us-east-1
+  instance_type: professional-8g
+  storage: 64GB
+  
+security:
+  encryption_at_rest: true
+  encryption_in_transit: true
+  ip_allowlist:
+    - "10.0.0.0/8"  # VPC CIDR
+    
+backup:
+  enabled: true
+  frequency: hourly
+  retention_days: 30
+  
+monitoring:
+  metrics_enabled: true
+  query_logging: true
+  alert_thresholds:
+    cpu_percent: 80
+    memory_percent: 85
+    query_latency_ms: 5000
+```
+
+### Google Cloud Deployment
+
+```yaml
+# Google Cloud Run Configuration
+apiVersion: run.googleapis.com/v1
+kind: Service
+metadata:
+  name: neo4j-litigation
+spec:
+  template:
+    spec:
+      containers:
+        - image: neo4j:5.15-enterprise
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secrets
+                  key: auth
+            - name: NEO4J_PLUGINS
+              value: '["graph-data-science", "apoc"]'
+          resources:
+            limits:
+              memory: "8Gi"
+              cpu: "4000m"
+          ports:
+            - containerPort: 7687
+              name: bolt
+            - containerPort: 7474
+              name: http
+```
+
+### Cost Estimate
+
+| Component | Monthly Cost | Notes |
+|-----------|--------------|-------|
+| Neo4j Aura Enterprise | $5,000 | 8GB RAM, 64GB storage |
+| Google Cloud Run | $500 | Backup + DR environment |
+| Visualization hosting | $100 | Static file hosting |
+| **Total** | **$5,600/month** | Production environment |
+
+---
+
+## Integration with Agents
+
+### RICO_AGENT Neo4j Integration
+
+```python
+class RicoAgentNeo4j:
+    """
+    RICO Agent with Neo4j graph database integration.
+    """
+    
+    def __init__(self, neo4j_uri: str, auth: tuple):
+        self.driver = GraphDatabase.driver(neo4j_uri, auth=auth)
+    
+    async def store_analysis(self, analysis: RicoAnalysis):
+        """
+        Store RICO analysis results in Neo4j.
+        """
+        async with self.driver.session() as session:
+            # Store predicate acts
+            for act in analysis.predicate_acts:
+                await session.run("""
+                    CREATE (pa:Predicate_Act {
+                        id: $id,
+                        type: $type,
+                        date: date($date),
+                        confidence: $confidence
+                    })
+                """, id=act.id, type=act.type, 
+                    date=act.date, confidence=act.confidence)
+            
+            # Store relationships
+            for relationship in analysis.conspiracy_network:
+                await session.run("""
+                    MATCH (p1:Person {id: $source})
+                    MATCH (p2:Person {id: $target})
+                    CREATE (p1)-[:CONSPIRES_WITH {
+                        evidence: $evidence,
+                        confidence: $confidence
+                    }]->(p2)
+                """, source=relationship.source, target=relationship.target,
+                    evidence=relationship.evidence, confidence=relationship.confidence)
+    
+    async def query_conspiracy_network(self, defendant_id: str) -> List[dict]:
+        """
+        Query conspiracy network for visualization.
+        """
+        async with self.driver.session() as session:
+            result = await session.run("""
+                MATCH path = (d:Person {id: $defendant_id})-[:CONSPIRES_WITH*1..3]-(c:Person)
+                RETURN path
+            """, defendant_id=defendant_id)
+            
+            return [record.data() for record in result]
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Multi-Agent System" icon="robot" href="/deep-dive/litigation/multi-agent">
+    How agents populate the graph
+  </Card>
+  <Card title="Document Parsing" icon="file-lines" href="/deep-dive/litigation/document-parsing">
+    Entity extraction for graph storage
+  </Card>
+  <Card title="Dream Team Database" icon="users" href="/deep-dive/litigation/dream-team">
+    Expert coordination
+  </Card>
+  <Card title="Implementation Guide" icon="rocket" href="/deep-dive/litigation/implementation">
+    Deploy Neo4j infrastructure
+  </Card>
+</CardGroup>

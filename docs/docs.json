@@ -67,6 +67,17 @@
         ]
       },
       {
+        "group": "Litigation Force",
+        "pages": [
+          "deep-dive/litigation/overview",
+          "deep-dive/litigation/multi-agent",
+          "deep-dive/litigation/document-parsing",
+          "deep-dive/litigation/dream-team",
+          "deep-dive/litigation/neo4j-mapping",
+          "deep-dive/litigation/implementation"
+        ]
+      },
+      {
         "group": "Resources",
         "pages": ["security", "troubleshooting", "contact"]
       }
