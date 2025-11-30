@@ -1,0 +1,485 @@
+---
+title: About Context7
+sidebarTitle: About
+description: Everything you need to know about Context7 and how to fully utilize its features
+---
+
+## What is Context7?
+
+Context7 is an MCP (Model Context Protocol) server that brings up-to-date, version-specific documentation and code examples directly into your AI coding assistant. It solves the fundamental problem of LLMs relying on outdated training data when generating code.
+
+### The Problem
+
+LLMs are trained on data that can be months or years old. This means:
+
+- Code examples may use deprecated APIs
+- Syntax might not match current library versions
+- Best practices may have changed since training
+- New features are completely unknown to the model
+
+### The Solution
+
+Context7 fetches current documentation from library sources in real-time and injects it into your LLM's context. When you ask for help with Next.js, React, or any other library, Context7 provides:
+
+- **Current API references** - Documentation from the latest version
+- **Working code examples** - Tested snippets that actually work
+- **Version-specific guidance** - Pin to exact versions when needed
+- **Best practices** - Updated recommendations from library authors
+
+## Core Concepts
+
+### Library IDs
+
+Every library in Context7 has a unique identifier in the format `/owner/repo`. For example:
+
+- `/vercel/next.js` - Next.js documentation
+- `/facebook/react` - React documentation
+- `/supabase/supabase` - Supabase documentation
+
+You can also specify versions: `/vercel/next.js/v15.1.8`
+
+### Documentation Modes
+
+Context7 provides two types of documentation:
+
+| Mode | Use Case | Content |
+|------|----------|---------|
+| **Code** (default) | API references, implementation details | Code snippets, function signatures, usage examples |
+| **Info** | Conceptual understanding, architecture | Guides, explanations, conceptual overviews |
+
+### MCP Tools
+
+Context7 exposes two main tools to your AI assistant:
+
+1. **`resolve-library-id`** - Searches for libraries and returns their Context7-compatible IDs
+2. **`get-library-docs`** - Fetches documentation for a specific library ID
+
+## Features
+
+### 1. Real-Time Documentation
+
+Context7 continuously indexes documentation from thousands of open-source libraries. When you query for documentation:
+
+1. Your topic keywords are sent to Context7 (your actual prompts stay local)
+2. Relevant documentation snippets are retrieved from our indexed database
+3. Fresh, accurate content is injected into your LLM's context
+
+### 2. Version Pinning
+
+Pin documentation to specific versions for consistent results:
+
+```txt
+Set up authentication with Supabase. use library /supabase/supabase/v2.0.0
+```
+
+This ensures you get documentation that matches your project's dependencies.
+
+### 3. Topic Filtering
+
+Focus results on specific topics to get more relevant documentation:
+
+```txt
+Show me Next.js middleware examples. use context7
+```
+
+The MCP server extracts "middleware" as a topic and returns documentation specifically about middleware.
+
+### 4. Pagination
+
+Context7 supports up to 10 pages of results per topic. If the initial context isn't sufficient:
+
+1. The AI can request additional pages
+2. Each page contains up to 10 documentation snippets
+3. Pagination metadata helps track available content
+
+### 5. Private Repositories
+
+For Pro and Enterprise users, Context7 can index your private repositories:
+
+- Internal libraries and frameworks
+- Proprietary documentation
+- Team-specific guides and patterns
+
+### 6. Team Collaboration
+
+Share Context7 access across your team:
+
+- Centralized API key management
+- Role-based access control
+- Shared library allowlists
+- Team usage analytics
+
+### 7. Source Reputation
+
+Each library includes quality indicators:
+
+| Indicator | Description |
+|-----------|-------------|
+| **Trust Score** | Source authority (High, Medium, Low, Unknown) |
+| **Benchmark Score** | Quality indicator (0-100, higher is better) |
+| **Code Snippets** | Number of available code examples |
+
+## Workflows
+
+### Basic Usage
+
+Add `use context7` to any coding prompt:
+
+```txt
+Create a Next.js API route that handles file uploads. use context7
+```
+
+The AI will:
+1. Identify that Next.js documentation is needed
+2. Call `resolve-library-id` to find `/vercel/next.js`
+3. Call `get-library-docs` with topic "API routes file uploads"
+4. Generate code based on current documentation
+
+### Auto-Invoke Setup
+
+Configure your AI assistant to automatically use Context7 without explicit prompts.
+
+**Cursor** (`Cursor Settings > Rules`):
+```txt
+Always use context7 when I need code generation, setup steps, or library documentation.
+Automatically use Context7 MCP tools without me having to ask.
+```
+
+**Windsurf** (`.windsurfrules`):
+```txt
+Use context7 for all code generation and API documentation questions.
+```
+
+**Claude Code** (`CLAUDE.md`):
+```txt
+Automatically use context7 for code generation and library documentation.
+```
+
+### Direct Library ID Usage
+
+Skip the search step when you know the exact library:
+
+```txt
+Implement rate limiting using /upstash/ratelimit for my API endpoints.
+```
+
+The `/owner/repo` format tells Context7 exactly which library to fetch.
+
+### Multi-Library Queries
+
+Get documentation from multiple libraries in a single session:
+
+```txt
+Build a full-stack app with Next.js and Supabase authentication.
+use library /vercel/next.js and /supabase/supabase
+```
+
+### Version-Specific Development
+
+When working with specific library versions:
+
+```txt
+I'm using Next.js 14. Show me the App Router documentation.
+use library /vercel/next.js/v14.3.0-canary.87
+```
+
+## Best Practices
+
+### Security
+
+<AccordionGroup>
+  <Accordion title="API Key Management" icon="key">
+    - Store keys in environment variables, never in code
+    - Use `.env` files and add them to `.gitignore`
+    - Create separate keys for different environments (dev, prod)
+    - Rotate keys every 90 days or immediately if compromised
+  </Accordion>
+
+  <Accordion title="Team Access Control" icon="users">
+    - Use the Developer role for non-admin team members
+    - Review and audit team access regularly
+    - Remove access promptly when team members leave
+  </Accordion>
+</AccordionGroup>
+
+### Performance
+
+<AccordionGroup>
+  <Accordion title="Use Specific Library IDs" icon="bullseye">
+    Instead of: "Show me React hooks documentation"
+    
+    Use: "Show me hooks documentation. use library /facebook/react"
+    
+    Direct library IDs skip the search step and return results faster.
+  </Accordion>
+
+  <Accordion title="Topic Filtering" icon="filter">
+    Be specific about what you need:
+    
+    - "authentication with JWT" instead of "auth"
+    - "server components data fetching" instead of "data"
+    - "middleware redirect patterns" instead of "middleware"
+  </Accordion>
+
+  <Accordion title="Pagination Strategy" icon="book-open">
+    Start with the default page, then request more if needed:
+    
+    1. Initial request returns page 1
+    2. Check if context is sufficient
+    3. Request page 2, 3, etc. if more detail is needed
+    4. Maximum of 10 pages (100 snippets) per topic
+  </Accordion>
+
+  <Accordion title="Caching" icon="database">
+    For direct API usage:
+    
+    - Cache responses for 6-24 hours
+    - Documentation updates are infrequent
+    - Reduces API calls and improves response times
+  </Accordion>
+</AccordionGroup>
+
+### Library Management
+
+<AccordionGroup>
+  <Accordion title="Adding Libraries" icon="plus">
+    Submit libraries at [context7.com/add-library](https://context7.com/add-library):
+    
+    1. Paste the GitHub repository URL
+    2. Adjust folders and exclusions if needed
+    3. Submit for parsing
+    
+    Libraries are typically ready within minutes.
+  </Accordion>
+
+  <Accordion title="Keeping Documentation Fresh" icon="refresh">
+    Request refreshes when:
+    
+    - Major versions are released
+    - Significant documentation updates occur
+    - You notice outdated information
+    
+    Refresh at [context7.com/refresh-library](https://context7.com/refresh-library)
+  </Accordion>
+
+  <Accordion title="Custom Configuration" icon="gear">
+    Add `context7.json` to your repository for precise control:
+    
+    ```json
+    {
+      "$schema": "https://context7.com/schema/context7.json",
+      "projectTitle": "My Library",
+      "description": "Library description",
+      "folders": ["docs", "guides"],
+      "excludeFolders": ["tests", "dist"],
+      "rules": ["Use TypeScript strict mode"]
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Configuration
+
+### Environment Variables
+
+Configure Context7 via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `CONTEXT7_API_KEY` | Your API key for authentication |
+| `https_proxy` / `HTTPS_PROXY` | Proxy server for corporate networks |
+
+### MCP Server Options
+
+When running the local server, use CLI flags:
+
+```bash
+# HTTP transport on custom port
+npx @upstash/context7-mcp --transport http --port 8080
+
+# Stdio transport with API key
+npx @upstash/context7-mcp --transport stdio --api-key YOUR_API_KEY
+```
+
+### context7.json Reference
+
+Full configuration options for library owners:
+
+```json
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Display Name",
+  "description": "Short description",
+  "branch": "main",
+  "folders": ["docs"],
+  "excludeFolders": ["tests", "**/internal", "*.test"],
+  "excludeFiles": ["CHANGELOG.md"],
+  "rules": ["Best practice 1", "Best practice 2"],
+  "previousVersions": [
+    { "tag": "v1.0.0" }
+  ],
+  "branchVersions": [
+    { "branch": "v1-stable" }
+  ]
+}
+```
+
+## Integration Methods
+
+### 1. MCP Server (Recommended)
+
+The MCP server integrates directly with AI assistants:
+
+**Remote Connection** (easiest):
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+**Local Connection** (for development):
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "YOUR_API_KEY"]
+    }
+  }
+}
+```
+
+### 2. TypeScript SDK
+
+For programmatic access in your applications:
+
+```typescript
+import { Context7 } from "@upstash/context7-sdk";
+
+const client = new Context7({ apiKey: process.env.CONTEXT7_API_KEY });
+
+// Search for libraries
+const results = await client.searchLibrary("react");
+
+// Get code documentation
+const docs = await client.getDocs("/facebook/react", {
+  mode: "code",
+  topic: "hooks",
+  limit: 10
+});
+```
+
+### 3. REST API
+
+Direct API access for any HTTP client:
+
+```bash
+# Search for libraries
+curl "https://context7.com/api/v2/search?query=react" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# Get code documentation
+curl "https://context7.com/api/v2/docs/code/facebook/react?topic=hooks" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Use Cases
+
+### For Developers
+
+- **Learning new libraries**: Get accurate, up-to-date examples
+- **Upgrading dependencies**: Find migration guides and breaking changes
+- **Debugging**: Access current API documentation instantly
+- **Code review**: Verify implementations against official docs
+
+### For Teams
+
+- **Onboarding**: New team members get accurate documentation
+- **Standardization**: Ensure everyone uses current best practices
+- **Internal libraries**: Index private documentation for team use
+- **Code review**: Automated tools (like CodeRabbit) can verify implementations
+
+### For Library Authors
+
+- **Better discoverability**: Make your library easier to use with AI
+- **Quality control**: Define rules and best practices for AI-generated code
+- **Version management**: Keep multiple versions accessible
+- **User support**: Reduce support burden with accurate AI responses
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Rate Limit Errors (429)" icon="clock">
+    **Cause**: Too many requests without API key or exceeding plan limits
+    
+    **Solution**:
+    1. Add an API key to your configuration
+    2. Check your usage at [context7.com/dashboard](https://context7.com/dashboard)
+    3. Consider upgrading your plan for higher limits
+  </Accordion>
+
+  <Accordion title="Library Not Found (404)" icon="search">
+    **Cause**: Library hasn't been indexed yet
+    
+    **Solution**:
+    1. Search at [context7.com](https://context7.com) to verify
+    2. Submit the library at [context7.com/add-library](https://context7.com/add-library)
+    3. Wait a few minutes for indexing to complete
+  </Accordion>
+
+  <Accordion title="Module Not Found Errors" icon="puzzle-piece">
+    **Cause**: Node.js module resolution issues
+    
+    **Solution**: Try alternative package runners:
+    ```json
+    {
+      "command": "bunx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Connection Timeouts" icon="wifi">
+    **Cause**: Network issues or proxy requirements
+    
+    **Solution**:
+    1. Test connectivity: `curl https://mcp.context7.com/mcp/ping`
+    2. Configure proxy if behind firewall
+    3. Use remote server connection instead of local
+  </Accordion>
+</AccordionGroup>
+
+For more detailed troubleshooting, see the [Troubleshooting Guide](/troubleshooting).
+
+## Getting Help
+
+- **Documentation**: [context7.com/docs](https://context7.com/docs)
+- **Discord Community**: [upstash.com/discord](https://upstash.com/discord)
+- **GitHub Issues**: [github.com/upstash/context7/issues](https://github.com/upstash/context7/issues)
+- **Enterprise Support**: [context7@upstash.com](mailto:context7@upstash.com)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Install Context7" icon="download" href="/installation">
+    Set up Context7 in your preferred AI assistant
+  </Card>
+  <Card title="How-To Guides" icon="book" href="/usage">
+    Master Context7 features and workflows
+  </Card>
+  <Card title="API Reference" icon="code" href="/api">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Add Your Library" icon="plus" href="/adding-libraries">
+    Submit or configure libraries for Context7
+  </Card>
+</CardGroup>

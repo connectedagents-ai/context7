@@ -14,6 +14,7 @@
         "group": "Overview",
         "pages": [
           "overview",
+          "about",
           "installation",
           "usage",
           "adding-libraries",
