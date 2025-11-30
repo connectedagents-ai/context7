@@ -1,0 +1,920 @@
+---
+title: Team Training Materials
+sidebarTitle: Team Training
+description: Comprehensive training program for the Legal Tech Platform team
+---
+
+# Team Training Materials
+
+This document provides a complete training program including onboarding, technical deep dives, and certification paths for team members working with the Legal Tech Document Intelligence Platform.
+
+## 90-Day Onboarding Program
+
+### Week 1-2: Foundation
+
+```yaml
+# Onboarding Schedule - Days 1-14
+foundation_phase:
+  day_1:
+    morning:
+      - "Welcome and team introductions"
+      - "Company culture and values overview"
+      - "Security awareness training (mandatory)"
+      - "Workstation setup and access provisioning"
+    afternoon:
+      - "Platform overview presentation"
+      - "Development environment setup"
+      - "Git workflow and branching strategy"
+      - "First code checkout and build"
+      
+  day_2_3:
+    focus: "Architecture Overview"
+    activities:
+      - "System architecture walkthrough"
+      - "Microservices deep dive"
+      - "Data flow and storage patterns"
+      - "API gateway and authentication"
+    hands_on:
+      - "Deploy local development stack"
+      - "Run integration tests"
+      - "Trace a request through the system"
+      
+  day_4_5:
+    focus: "Core Technologies"
+    activities:
+      - "Kubernetes fundamentals"
+      - "Docker and containerization"
+      - "AWS services overview"
+      - "PostgreSQL and Redis basics"
+    hands_on:
+      - "Create a sample Kubernetes deployment"
+      - "Build and push a Docker image"
+      - "Connect to database and cache"
+      
+  week_2:
+    focus: "AI/ML Components"
+    activities:
+      - "LLM fundamentals and prompt engineering"
+      - "LangGraph and agentic workflows"
+      - "Vector databases and embeddings"
+      - "Document processing pipeline"
+    hands_on:
+      - "Write and test prompts"
+      - "Create a simple agent workflow"
+      - "Index and query documents"
+    assessment:
+      - "Foundation knowledge quiz"
+      - "Hands-on exercise review"
+```
+
+### Week 3-4: Domain Deep Dive
+
+```yaml
+domain_phase:
+  week_3:
+    focus: "Legal Domain Knowledge"
+    activities:
+      - "Legal document types and structures"
+      - "Litigation discovery process"
+      - "Regulatory compliance requirements"
+      - "Attorney-client privilege concepts"
+    hands_on:
+      - "Process sample legal documents"
+      - "Configure privilege detection rules"
+      - "Run compliance checks"
+      
+  week_4:
+    focus: "Energy Sector Domain"
+    activities:
+      - "Oil & gas industry overview"
+      - "Environmental regulations (FERC, EPA)"
+      - "Contract and lease structures"
+      - "Due diligence workflows"
+    hands_on:
+      - "Analyze sample energy contracts"
+      - "Configure regulatory monitoring"
+      - "Build compliance dashboard"
+    project:
+      - "Mini-project: End-to-end document analysis"
+```
+
+### Week 5-8: Deep Technical Training
+
+```yaml
+technical_phase:
+  week_5_6:
+    focus: "Backend Development"
+    curriculum:
+      - "Python best practices"
+      - "FastAPI service development"
+      - "Database design patterns"
+      - "Async programming"
+      - "Testing strategies"
+    hands_on:
+      - "Build a new microservice"
+      - "Implement database migrations"
+      - "Write comprehensive tests"
+      
+  week_7_8:
+    focus: "AI/ML Development"
+    curriculum:
+      - "Advanced prompt engineering"
+      - "Multi-agent orchestration"
+      - "Model fine-tuning basics"
+      - "Evaluation and monitoring"
+    hands_on:
+      - "Create a specialized agent"
+      - "Implement prompt A/B testing"
+      - "Build evaluation pipeline"
+    capstone:
+      - "Individual project: New feature implementation"
+```
+
+### Week 9-12: Production Readiness
+
+```yaml
+production_phase:
+  week_9_10:
+    focus: "DevOps and Infrastructure"
+    curriculum:
+      - "Terraform deep dive"
+      - "CI/CD pipeline development"
+      - "Monitoring and observability"
+      - "Incident response procedures"
+    hands_on:
+      - "Modify infrastructure code"
+      - "Create deployment pipelines"
+      - "Set up monitoring dashboards"
+      
+  week_11_12:
+    focus: "Security and Compliance"
+    curriculum:
+      - "Security best practices"
+      - "SOC 2 compliance requirements"
+      - "HIPAA considerations"
+      - "Penetration testing basics"
+    hands_on:
+      - "Security audit exercise"
+      - "Vulnerability assessment"
+      - "Compliance checklist validation"
+    final_assessment:
+      - "Technical interview"
+      - "Capstone project presentation"
+      - "Certification exam"
+```
+
+## Technical Architecture Deep Dives
+
+### Microservices Architecture
+
+```python
+"""
+Training Module: Microservices Architecture
+Hands-on code examples for understanding the platform architecture
+"""
+
+# Example 1: Service Structure
+# This demonstrates the standard microservice structure
+
+# services/document-processor/app/main.py
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import structlog
+
+from app.config import settings
+from app.api import documents, health
+from app.services.processor import DocumentProcessor
+from app.database import init_db, close_db
+
+logger = structlog.get_logger()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifecycle management"""
+    # Startup
+    logger.info("Starting document processor service")
+    await init_db()
+    yield
+    # Shutdown
+    logger.info("Shutting down document processor service")
+    await close_db()
+
+app = FastAPI(
+    title="Document Processor Service",
+    description="Processes and analyzes legal documents",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Routes
+app.include_router(health.router, tags=["Health"])
+app.include_router(documents.router, prefix="/api/v1", tags=["Documents"])
+
+
+# Example 2: Service-to-Service Communication
+# services/document-processor/app/clients/ai_orchestrator.py
+
+from httpx import AsyncClient
+from tenacity import retry, stop_after_attempt, wait_exponential
+import structlog
+
+logger = structlog.get_logger()
+
+class AIOrchestorClient:
+    """Client for communicating with AI Orchestrator service"""
+    
+    def __init__(self, base_url: str):
+        self.base_url = base_url
+        self.client = AsyncClient(
+            base_url=base_url,
+            timeout=30.0,
+            headers={"Content-Type": "application/json"}
+        )
+        
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    async def analyze_document(
+        self,
+        document_id: str,
+        content: str,
+        analysis_type: str
+    ) -> dict:
+        """Send document for AI analysis"""
+        logger.info(
+            "Sending document for analysis",
+            document_id=document_id,
+            analysis_type=analysis_type
+        )
+        
+        response = await self.client.post(
+            "/api/v1/analyze",
+            json={
+                "document_id": document_id,
+                "content": content,
+                "analysis_type": analysis_type
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+        
+    async def close(self):
+        await self.client.aclose()
+
+
+# Example 3: Database Repository Pattern
+# services/document-processor/app/repositories/document_repository.py
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from typing import Optional, List
+from uuid import UUID
+
+from app.models.document import Document, DocumentStatus
+from app.schemas.document import DocumentCreate, DocumentUpdate
+
+class DocumentRepository:
+    """Repository for document database operations"""
+    
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        
+    async def create(self, document: DocumentCreate) -> Document:
+        """Create a new document record"""
+        db_document = Document(
+            title=document.title,
+            content=document.content,
+            document_type=document.document_type,
+            status=DocumentStatus.PENDING
+        )
+        self.session.add(db_document)
+        await self.session.commit()
+        await self.session.refresh(db_document)
+        return db_document
+        
+    async def get_by_id(self, document_id: UUID) -> Optional[Document]:
+        """Get document by ID"""
+        result = await self.session.execute(
+            select(Document).where(Document.id == document_id)
+        )
+        return result.scalar_one_or_none()
+        
+    async def update_status(
+        self,
+        document_id: UUID,
+        status: DocumentStatus
+    ) -> Optional[Document]:
+        """Update document status"""
+        await self.session.execute(
+            update(Document)
+            .where(Document.id == document_id)
+            .values(status=status)
+        )
+        await self.session.commit()
+        return await self.get_by_id(document_id)
+        
+    async def list_pending(self, limit: int = 100) -> List[Document]:
+        """List pending documents for processing"""
+        result = await self.session.execute(
+            select(Document)
+            .where(Document.status == DocumentStatus.PENDING)
+            .limit(limit)
+        )
+        return result.scalars().all()
+```
+
+### LangGraph Agent Development
+
+```python
+"""
+Training Module: LangGraph Agent Development
+Learn to build AI agents for legal document processing
+"""
+
+from typing import Annotated, TypedDict, Literal
+from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+import structlog
+
+logger = structlog.get_logger()
+
+# Step 1: Define the state
+class LegalAnalysisState(TypedDict):
+    """State for legal document analysis workflow"""
+    document_id: str
+    content: str
+    document_type: str
+    messages: list
+    extracted_entities: dict
+    compliance_issues: list
+    privilege_status: dict
+    final_report: str
+    current_step: str
+
+# Step 2: Define tools
+@tool
+def extract_entities(content: str) -> dict:
+    """Extract legal entities from document content"""
+    # This would call the entity extraction service
+    return {
+        "parties": ["Party A", "Party B"],
+        "dates": ["2024-01-15", "2024-06-30"],
+        "monetary_values": ["$1,000,000", "$500,000"],
+        "legal_references": ["Section 5.1", "Article III"]
+    }
+
+@tool
+def check_compliance(content: str, document_type: str) -> list:
+    """Check document for compliance issues"""
+    # This would call the compliance checking service
+    return [
+        {"issue": "Missing signature block", "severity": "high"},
+        {"issue": "Outdated regulatory reference", "severity": "medium"}
+    ]
+
+@tool
+def assess_privilege(content: str) -> dict:
+    """Assess attorney-client privilege status"""
+    # This would call the privilege assessment service
+    return {
+        "is_privileged": True,
+        "privilege_type": "attorney-client",
+        "confidence": 0.92,
+        "indicators": ["Legal advice request", "Confidential marking"]
+    }
+
+# Step 3: Define agent nodes
+def entity_extraction_node(state: LegalAnalysisState) -> LegalAnalysisState:
+    """Node for extracting entities from documents"""
+    logger.info("Extracting entities", document_id=state["document_id"])
+    
+    entities = extract_entities(state["content"])
+    state["extracted_entities"] = entities
+    state["current_step"] = "entity_extraction_complete"
+    state["messages"].append(
+        AIMessage(content=f"Extracted entities: {entities}")
+    )
+    return state
+
+def compliance_check_node(state: LegalAnalysisState) -> LegalAnalysisState:
+    """Node for checking compliance"""
+    logger.info("Checking compliance", document_id=state["document_id"])
+    
+    issues = check_compliance(state["content"], state["document_type"])
+    state["compliance_issues"] = issues
+    state["current_step"] = "compliance_check_complete"
+    state["messages"].append(
+        AIMessage(content=f"Found {len(issues)} compliance issues")
+    )
+    return state
+
+def privilege_assessment_node(state: LegalAnalysisState) -> LegalAnalysisState:
+    """Node for assessing privilege status"""
+    logger.info("Assessing privilege", document_id=state["document_id"])
+    
+    privilege = assess_privilege(state["content"])
+    state["privilege_status"] = privilege
+    state["current_step"] = "privilege_assessment_complete"
+    state["messages"].append(
+        AIMessage(content=f"Privilege assessment: {privilege['is_privileged']}")
+    )
+    return state
+
+def report_generation_node(state: LegalAnalysisState) -> LegalAnalysisState:
+    """Node for generating final analysis report"""
+    logger.info("Generating report", document_id=state["document_id"])
+    
+    llm = ChatOpenAI(model="gpt-4", temperature=0)
+    
+    report_prompt = f"""
+    Generate a comprehensive legal document analysis report based on:
+    
+    Document Type: {state['document_type']}
+    Extracted Entities: {state['extracted_entities']}
+    Compliance Issues: {state['compliance_issues']}
+    Privilege Status: {state['privilege_status']}
+    
+    Provide a structured report with recommendations.
+    """
+    
+    response = llm.invoke([HumanMessage(content=report_prompt)])
+    state["final_report"] = response.content
+    state["current_step"] = "complete"
+    return state
+
+# Step 4: Define routing logic
+def route_after_extraction(state: LegalAnalysisState) -> Literal["compliance", "privilege"]:
+    """Route based on document type"""
+    if state["document_type"] in ["contract", "agreement"]:
+        return "compliance"
+    return "privilege"
+
+# Step 5: Build the graph
+def build_legal_analysis_graph():
+    """Build the LangGraph workflow"""
+    workflow = StateGraph(LegalAnalysisState)
+    
+    # Add nodes
+    workflow.add_node("extract_entities", entity_extraction_node)
+    workflow.add_node("check_compliance", compliance_check_node)
+    workflow.add_node("assess_privilege", privilege_assessment_node)
+    workflow.add_node("generate_report", report_generation_node)
+    
+    # Set entry point
+    workflow.set_entry_point("extract_entities")
+    
+    # Add edges
+    workflow.add_conditional_edges(
+        "extract_entities",
+        route_after_extraction,
+        {
+            "compliance": "check_compliance",
+            "privilege": "assess_privilege"
+        }
+    )
+    workflow.add_edge("check_compliance", "assess_privilege")
+    workflow.add_edge("assess_privilege", "generate_report")
+    workflow.add_edge("generate_report", END)
+    
+    return workflow.compile()
+
+
+# Step 6: Usage example
+async def analyze_document(document_id: str, content: str, doc_type: str):
+    """Run legal document analysis"""
+    graph = build_legal_analysis_graph()
+    
+    initial_state = LegalAnalysisState(
+        document_id=document_id,
+        content=content,
+        document_type=doc_type,
+        messages=[],
+        extracted_entities={},
+        compliance_issues=[],
+        privilege_status={},
+        final_report="",
+        current_step="started"
+    )
+    
+    result = await graph.ainvoke(initial_state)
+    return result
+
+
+# Training Exercise: Extend the agent
+"""
+Exercise 1: Add a new node for contract clause extraction
+Exercise 2: Implement parallel processing for entity extraction and privilege assessment
+Exercise 3: Add human-in-the-loop for high-risk document review
+Exercise 4: Implement retry logic with fallback models
+"""
+```
+
+## Kubernetes Training
+
+### Fundamentals
+
+```yaml
+# Training Lab: Kubernetes Fundamentals
+# Work through these examples to understand K8s concepts
+
+# Lab 1: Pods and Deployments
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: training-app
+  namespace: training
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: training-app
+  template:
+    metadata:
+      labels:
+        app: training-app
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.25
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 3
+
+# Lab 2: Services
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: training-app-service
+  namespace: training
+spec:
+  selector:
+    app: training-app
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+
+# Lab 3: ConfigMaps and Secrets
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-config
+  namespace: training
+data:
+  APP_ENV: "training"
+  LOG_LEVEL: "debug"
+  FEATURE_FLAGS: |
+    {
+      "new_feature": true,
+      "beta_mode": false
+    }
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: training-secrets
+  namespace: training
+type: Opaque
+stringData:
+  API_KEY: "training-api-key-12345"
+  DATABASE_URL: "postgresql://user:pass@db:5432/training"
+
+# Lab 4: HorizontalPodAutoscaler
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: training-app-hpa
+  namespace: training
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: training-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+```
+
+### Production Operations
+
+```bash
+#!/bin/bash
+# Training Lab: Kubernetes Operations
+
+echo "=== Lab 5: Debugging and Troubleshooting ==="
+
+# Check pod status
+kubectl get pods -n training -o wide
+
+# View pod logs
+kubectl logs -n training deployment/training-app --tail=100 -f
+
+# Describe pod for events
+kubectl describe pod -n training -l app=training-app
+
+# Execute into a pod
+kubectl exec -it -n training $(kubectl get pod -n training -l app=training-app -o jsonpath='{.items[0].metadata.name}') -- /bin/sh
+
+# Check resource usage
+kubectl top pods -n training
+kubectl top nodes
+
+# View events
+kubectl get events -n training --sort-by='.lastTimestamp'
+
+echo "=== Lab 6: Rollouts and Rollbacks ==="
+
+# Check rollout status
+kubectl rollout status deployment/training-app -n training
+
+# View rollout history
+kubectl rollout history deployment/training-app -n training
+
+# Rollback to previous version
+kubectl rollout undo deployment/training-app -n training
+
+# Rollback to specific revision
+kubectl rollout undo deployment/training-app -n training --to-revision=2
+
+echo "=== Lab 7: Resource Management ==="
+
+# Set resource quotas
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: training-quota
+  namespace: training
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+EOF
+
+# View quota usage
+kubectl describe resourcequota -n training
+
+echo "=== Lab 8: Network Debugging ==="
+
+# Test service connectivity
+kubectl run -n training debug --image=nicolaka/netshoot --rm -it -- /bin/bash
+
+# Inside debug pod:
+# curl http://training-app-service
+# nslookup training-app-service
+# traceroute training-app-service
+```
+
+## Certification Program
+
+### Level 1: Developer Certification
+
+```yaml
+developer_certification:
+  name: "Legal Tech Platform Developer"
+  duration: "4 weeks preparation"
+  
+  prerequisites:
+    - "Completed 90-day onboarding"
+    - "At least 2 completed tickets in production"
+    
+  exam_format:
+    written:
+      duration: "2 hours"
+      questions: 50
+      passing_score: 75%
+      topics:
+        - "Platform architecture (20%)"
+        - "Python development (25%)"
+        - "API design and development (20%)"
+        - "Database operations (15%)"
+        - "Testing strategies (20%)"
+        
+    practical:
+      duration: "3 hours"
+      tasks:
+        - "Build a new API endpoint"
+        - "Write integration tests"
+        - "Debug a failing service"
+        - "Optimize a database query"
+      passing_criteria:
+        - "All tasks completed"
+        - "Code passes review"
+        - "Tests pass"
+        
+  study_materials:
+    - "Internal documentation"
+    - "Code walkthroughs"
+    - "Practice exercises"
+    - "Mock exams"
+```
+
+### Level 2: Engineer Certification
+
+```yaml
+engineer_certification:
+  name: "Legal Tech Platform Engineer"
+  duration: "8 weeks preparation"
+  
+  prerequisites:
+    - "Level 1 Developer Certification"
+    - "6+ months of platform experience"
+    - "Led at least one major feature development"
+    
+  exam_format:
+    written:
+      duration: "3 hours"
+      questions: 75
+      passing_score: 80%
+      topics:
+        - "Advanced architecture patterns (25%)"
+        - "AI/ML integration (25%)"
+        - "Performance optimization (20%)"
+        - "Security implementation (15%)"
+        - "DevOps practices (15%)"
+        
+    practical:
+      duration: "4 hours"
+      tasks:
+        - "Design and implement a new agent workflow"
+        - "Optimize system performance"
+        - "Implement security controls"
+        - "Set up monitoring and alerting"
+      passing_criteria:
+        - "All tasks completed with documentation"
+        - "Solution meets performance requirements"
+        - "Passes security review"
+        
+    project:
+      duration: "2 weeks"
+      description: "Implement a significant platform enhancement"
+      deliverables:
+        - "Design document"
+        - "Working implementation"
+        - "Test suite"
+        - "Documentation"
+        - "Presentation to review panel"
+```
+
+### Level 3: Architect Certification
+
+```yaml
+architect_certification:
+  name: "Legal Tech Platform Architect"
+  duration: "12 weeks preparation"
+  
+  prerequisites:
+    - "Level 2 Engineer Certification"
+    - "18+ months of platform experience"
+    - "Demonstrated technical leadership"
+    
+  exam_format:
+    design_review:
+      duration: "4 hours"
+      format: "Whiteboard session with panel"
+      topics:
+        - "System design for scale"
+        - "Multi-region architecture"
+        - "Disaster recovery planning"
+        - "Technology selection and trade-offs"
+        
+    case_study:
+      duration: "1 week"
+      format: "Written analysis and presentation"
+      scenarios:
+        - "10x scale requirements"
+        - "New regulatory compliance requirement"
+        - "Major security incident response"
+        
+    panel_interview:
+      duration: "2 hours"
+      topics:
+        - "Technical decision making"
+        - "Team leadership and mentoring"
+        - "Cross-functional collaboration"
+        - "Innovation and improvement"
+        
+  maintenance:
+    recertification: "Every 2 years"
+    continuing_education: "40 hours annually"
+    community_contribution: "Required"
+```
+
+## Skill Assessment Matrix
+
+```yaml
+# Skill assessment for team member development
+skill_matrix:
+  technical_skills:
+    python:
+      levels:
+        beginner: "Can write basic scripts and functions"
+        intermediate: "Understands OOP, async, and testing"
+        advanced: "Designs systems, optimizes performance"
+        expert: "Contributes to Python ecosystem, mentors others"
+        
+    kubernetes:
+      levels:
+        beginner: "Can deploy and debug basic workloads"
+        intermediate: "Configures networking, scaling, security"
+        advanced: "Designs cluster architecture, operators"
+        expert: "Contributes to K8s ecosystem"
+        
+    ai_ml:
+      levels:
+        beginner: "Can use pre-built models and prompts"
+        intermediate: "Designs prompts, evaluates models"
+        advanced: "Builds agent workflows, fine-tunes models"
+        expert: "Researches new techniques, publishes"
+        
+    security:
+      levels:
+        beginner: "Follows security guidelines"
+        intermediate: "Implements security controls"
+        advanced: "Designs security architecture"
+        expert: "Leads security initiatives, audits"
+        
+  domain_skills:
+    legal_domain:
+      levels:
+        beginner: "Understands basic legal concepts"
+        intermediate: "Applies legal rules in development"
+        advanced: "Designs legal workflows"
+        expert: "Advises on legal-tech strategy"
+        
+    energy_sector:
+      levels:
+        beginner: "Understands industry basics"
+        intermediate: "Applies regulatory knowledge"
+        advanced: "Designs compliance solutions"
+        expert: "Industry thought leader"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment Automation" icon="rocket" href="/deep-dive/deployment">
+    Apply training to real deployments
+  </Card>
+  <Card title="Security & Compliance" icon="shield" href="/deep-dive/security-compliance">
+    Learn security implementation
+  </Card>
+  <Card title="System Architecture" icon="sitemap" href="/deep-dive/architecture">
+    Deep dive into architecture
+  </Card>
+  <Card title="Phase Expansion" icon="chart-line" href="/deep-dive/phase-expansion">
+    Implementation roadmap
+  </Card>
+</CardGroup>

@@ -56,6 +56,17 @@
         "pages": ["integrations/code-rabbit"]
       },
       {
+        "group": "Deep Dive",
+        "pages": [
+          "deep-dive/architecture",
+          "deep-dive/deployment",
+          "deep-dive/cost-estimation",
+          "deep-dive/security-compliance",
+          "deep-dive/team-training",
+          "deep-dive/phase-expansion"
+        ]
+      },
+      {
         "group": "Resources",
         "pages": ["security", "troubleshooting", "contact"]
       }

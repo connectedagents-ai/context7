@@ -1,0 +1,1136 @@
+---
+title: Security & Compliance Procedures
+sidebarTitle: Security & Compliance
+description: Comprehensive security hardening and compliance implementation for the Legal Tech Platform
+---
+
+# Security & Compliance Procedures
+
+This document provides comprehensive security hardening procedures, compliance implementations, and automated security controls for the Legal Tech Document Intelligence Platform.
+
+## Security Architecture Overview
+
+### Zero-Trust Architecture
+
+```yaml
+# Zero-Trust Security Model
+principles:
+  - Never trust, always verify
+  - Assume breach
+  - Verify explicitly
+  - Use least privilege access
+  - Encrypt everything
+
+implementation:
+  identity:
+    - Multi-factor authentication required
+    - Conditional access policies
+    - Just-in-time access
+    - Privileged identity management
+    
+  network:
+    - Microsegmentation
+    - mTLS for all service communication
+    - Network policies per namespace
+    - Encrypted traffic (TLS 1.3)
+    
+  data:
+    - Encryption at rest (AES-256-GCM)
+    - Encryption in transit (TLS 1.3)
+    - Data classification
+    - DLP policies
+    
+  workload:
+    - Pod security standards
+    - Image signing and verification
+    - Runtime security monitoring
+    - Immutable infrastructure
+```
+
+## Kubernetes Security Hardening
+
+### Pod Security Standards
+
+```yaml
+# Pod Security Policy - Restricted Profile
+apiVersion: policy/v1
+kind: PodSecurityPolicy
+metadata:
+  name: legal-tech-restricted
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfiles: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/allowedProfiles: 'runtime/default'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  
+  # Required drop capabilities
+  requiredDropCapabilities:
+    - ALL
+    
+  # Volume types allowed
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+    
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+    
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+        
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+        
+  seLinux:
+    rule: 'RunAsAny'
+    
+  readOnlyRootFilesystem: true
+
+---
+# Namespace enforcement
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: legal-tech
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+```
+
+### Network Policies
+
+```yaml
+# Default deny all ingress and egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: legal-tech
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# API Gateway network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-policy
+  namespace: legal-tech
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: document-processor
+        - podSelector:
+            matchLabels:
+              app: ai-orchestrator
+        - podSelector:
+            matchLabels:
+              app: compliance-engine
+      ports:
+        - protocol: TCP
+          port: 8080
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# Document processor - database access
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: document-processor-policy
+  namespace: legal-tech
+spec:
+  podSelector:
+    matchLabels:
+      app: document-processor
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # PostgreSQL
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16  # VPC CIDR for RDS
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Redis
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - protocol: TCP
+          port: 6379
+    # S3 via VPC endpoint
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+```
+
+### RBAC Configuration
+
+```yaml
+# Service account with minimal permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: document-processor
+  namespace: legal-tech
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/DocumentProcessorRole
+
+---
+# Role with minimal permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: document-processor-role
+  namespace: legal-tech
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["document-processor-config"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["document-processor-secrets"]
+    verbs: ["get"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: document-processor-binding
+  namespace: legal-tech
+subjects:
+  - kind: ServiceAccount
+    name: document-processor
+    namespace: legal-tech
+roleRef:
+  kind: Role
+  name: document-processor-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Cluster role for cross-namespace operations (minimal)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: legal-tech-minimal-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]  # For node affinity checks only
+```
+
+## SOC 2 Compliance Implementation
+
+### Trust Services Criteria Mapping
+
+```yaml
+# SOC 2 Type II Compliance Matrix
+trust_services_criteria:
+
+  security:
+    CC1_organization_and_management:
+      controls:
+        - id: CC1.1
+          description: "Entity demonstrates commitment to integrity and ethical values"
+          evidence:
+            - code_of_conduct_policy
+            - security_awareness_training_records
+            - background_check_procedures
+          automation: hr_system_integration
+          
+        - id: CC1.2
+          description: "Board of directors demonstrates independence and oversight"
+          evidence:
+            - board_meeting_minutes
+            - security_committee_charter
+            - quarterly_security_reports
+            
+    CC2_communication_and_information:
+      controls:
+        - id: CC2.1
+          description: "Entity obtains relevant quality information"
+          evidence:
+            - monitoring_dashboards
+            - alert_configurations
+            - incident_reports
+          automation: datadog_export_script
+          
+    CC3_risk_assessment:
+      controls:
+        - id: CC3.1
+          description: "Entity specifies objectives with sufficient clarity"
+          evidence:
+            - security_objectives_document
+            - risk_register
+            - threat_model
+          automation: risk_assessment_tool
+          
+    CC5_control_activities:
+      controls:
+        - id: CC5.1
+          description: "Entity selects and develops control activities"
+          evidence:
+            - access_control_policies
+            - change_management_procedures
+            - encryption_configurations
+          automation: |
+            # Automated evidence collection
+            kubectl get networkpolicies -n legal-tech -o yaml
+            kubectl get podsecuritypolicies -o yaml
+            aws kms describe-key --key-id alias/legal-tech
+            
+    CC6_logical_and_physical_access:
+      controls:
+        - id: CC6.1
+          description: "Entity implements logical access security"
+          evidence:
+            - iam_policies
+            - mfa_enforcement_logs
+            - access_reviews
+          automation: |
+            # Access control audit
+            aws iam generate-credential-report
+            aws iam get-account-authorization-details
+            
+        - id: CC6.6
+          description: "Entity implements controls to prevent unauthorized access"
+          evidence:
+            - network_policies
+            - firewall_rules
+            - intrusion_detection_logs
+          automation: |
+            # Network security audit
+            aws ec2 describe-security-groups
+            kubectl get networkpolicies -A -o yaml
+            
+    CC7_system_operations:
+      controls:
+        - id: CC7.1
+          description: "Entity detects configuration changes"
+          evidence:
+            - config_management_logs
+            - drift_detection_reports
+            - change_tickets
+          automation: argocd_sync_status
+          
+        - id: CC7.2
+          description: "Entity monitors system components for anomalies"
+          evidence:
+            - monitoring_alerts
+            - anomaly_detection_configs
+            - incident_response_logs
+          automation: |
+            # Anomaly detection status
+            aws guardduty list-findings
+            kubectl logs -n falco -l app=falco
+            
+    CC8_change_management:
+      controls:
+        - id: CC8.1
+          description: "Entity authorizes, designs, develops changes"
+          evidence:
+            - github_pull_requests
+            - code_review_records
+            - deployment_approvals
+          automation: github_api_export
+          
+    CC9_risk_mitigation:
+      controls:
+        - id: CC9.1
+          description: "Entity identifies and assesses risks"
+          evidence:
+            - vulnerability_scan_reports
+            - penetration_test_results
+            - risk_treatment_plans
+          automation: |
+            # Vulnerability assessment
+            trivy image --severity HIGH,CRITICAL registry/image:tag
+            aws inspector list-findings
+```
+
+### Evidence Collection Automation
+
+```python
+#!/usr/bin/env python3
+"""
+SOC 2 Evidence Collection Automation
+Collects and organizes evidence for SOC 2 Type II audit
+"""
+
+import boto3
+import kubernetes
+from datetime import datetime, timedelta
+import json
+import os
+
+class SOC2EvidenceCollector:
+    def __init__(self, environment: str):
+        self.environment = environment
+        self.evidence_bucket = f"legal-tech-soc2-evidence-{environment}"
+        self.s3 = boto3.client('s3')
+        self.timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+        
+    def collect_all_evidence(self):
+        """Collect all SOC 2 evidence"""
+        evidence = {
+            'collection_timestamp': self.timestamp,
+            'environment': self.environment,
+            'categories': {}
+        }
+        
+        # CC6 - Access Controls
+        evidence['categories']['access_controls'] = {
+            'iam_policies': self._collect_iam_policies(),
+            'mfa_status': self._collect_mfa_status(),
+            'access_keys': self._collect_access_key_age(),
+            'rbac_policies': self._collect_k8s_rbac()
+        }
+        
+        # CC7 - System Operations
+        evidence['categories']['system_operations'] = {
+            'monitoring_config': self._collect_monitoring_config(),
+            'alert_history': self._collect_alert_history(),
+            'guardduty_findings': self._collect_guardduty_findings()
+        }
+        
+        # CC5 - Control Activities
+        evidence['categories']['control_activities'] = {
+            'encryption_config': self._collect_encryption_config(),
+            'network_policies': self._collect_network_policies(),
+            'security_groups': self._collect_security_groups()
+        }
+        
+        # Upload evidence
+        self._upload_evidence(evidence)
+        
+        return evidence
+        
+    def _collect_iam_policies(self) -> dict:
+        """Collect IAM policies and roles"""
+        iam = boto3.client('iam')
+        
+        policies = []
+        paginator = iam.get_paginator('list_policies')
+        for page in paginator.paginate(Scope='Local'):
+            for policy in page['Policies']:
+                policy_version = iam.get_policy_version(
+                    PolicyArn=policy['Arn'],
+                    VersionId=policy['DefaultVersionId']
+                )
+                policies.append({
+                    'name': policy['PolicyName'],
+                    'arn': policy['Arn'],
+                    'document': policy_version['PolicyVersion']['Document']
+                })
+                
+        return {'policies': policies, 'count': len(policies)}
+        
+    def _collect_mfa_status(self) -> dict:
+        """Collect MFA enforcement status"""
+        iam = boto3.client('iam')
+        
+        users = iam.list_users()['Users']
+        mfa_status = []
+        
+        for user in users:
+            mfa_devices = iam.list_mfa_devices(UserName=user['UserName'])
+            mfa_status.append({
+                'user': user['UserName'],
+                'mfa_enabled': len(mfa_devices['MFADevices']) > 0
+            })
+            
+        return {
+            'users': mfa_status,
+            'mfa_enabled_percentage': sum(1 for u in mfa_status if u['mfa_enabled']) / len(mfa_status) * 100
+        }
+        
+    def _collect_encryption_config(self) -> dict:
+        """Collect encryption configurations"""
+        kms = boto3.client('kms')
+        
+        keys = []
+        for key in kms.list_keys()['Keys']:
+            key_metadata = kms.describe_key(KeyId=key['KeyId'])['KeyMetadata']
+            if key_metadata['KeyState'] == 'Enabled':
+                keys.append({
+                    'key_id': key['KeyId'],
+                    'description': key_metadata.get('Description', ''),
+                    'key_spec': key_metadata['KeySpec'],
+                    'key_usage': key_metadata['KeyUsage'],
+                    'creation_date': key_metadata['CreationDate'].isoformat()
+                })
+                
+        return {'kms_keys': keys}
+        
+    def _collect_network_policies(self) -> dict:
+        """Collect Kubernetes network policies"""
+        kubernetes.config.load_kube_config()
+        v1 = kubernetes.client.NetworkingV1Api()
+        
+        policies = v1.list_namespaced_network_policy(namespace='legal-tech')
+        
+        return {
+            'policies': [
+                {
+                    'name': p.metadata.name,
+                    'spec': p.spec.to_dict()
+                }
+                for p in policies.items
+            ]
+        }
+        
+    def _upload_evidence(self, evidence: dict):
+        """Upload evidence to S3"""
+        key = f"evidence/{self.timestamp}/soc2-evidence.json"
+        
+        self.s3.put_object(
+            Bucket=self.evidence_bucket,
+            Key=key,
+            Body=json.dumps(evidence, indent=2, default=str),
+            ServerSideEncryption='aws:kms',
+            Metadata={
+                'collection-date': self.timestamp,
+                'environment': self.environment
+            }
+        )
+        
+        print(f"Evidence uploaded to s3://{self.evidence_bucket}/{key}")
+
+
+if __name__ == '__main__':
+    collector = SOC2EvidenceCollector(os.environ.get('ENVIRONMENT', 'prod'))
+    collector.collect_all_evidence()
+```
+
+## HIPAA Compliance
+
+### PHI Handling
+
+```yaml
+# HIPAA Compliance Configuration
+hipaa:
+  phi_classification:
+    identifiers:
+      - patient_name
+      - social_security_number
+      - medical_record_number
+      - health_plan_beneficiary_number
+      - account_numbers
+      - certificate_license_numbers
+      - vehicle_identifiers
+      - device_identifiers
+      - urls
+      - ip_addresses
+      - biometric_identifiers
+      - photographs
+      - unique_identifying_numbers
+      
+  data_handling:
+    storage:
+      encryption: AES-256-GCM
+      key_rotation: 90_days
+      access_logging: enabled
+      
+    transmission:
+      protocol: TLS_1.3
+      certificate_validation: strict
+      mTLS: enabled
+      
+    retention:
+      active_records: 6_years_minimum
+      audit_logs: 6_years
+      backup_retention: 7_years
+      
+  access_controls:
+    minimum_necessary: true
+    role_based_access: true
+    break_glass_procedures: enabled
+    access_reviews: quarterly
+    
+  audit_requirements:
+    login_attempts: logged
+    phi_access: logged
+    modifications: logged
+    exports: logged_and_approved
+```
+
+### PHI Detection and Masking
+
+```python
+#!/usr/bin/env python3
+"""
+HIPAA PHI Detection and Masking Service
+"""
+
+import re
+from typing import List, Dict, Tuple
+import hashlib
+
+class PHIDetector:
+    """Detects and masks Protected Health Information"""
+    
+    PATTERNS = {
+        'ssn': r'\b\d{3}-\d{2}-\d{4}\b',
+        'phone': r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b',
+        'email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+        'mrn': r'\bMRN[:\s]?\d{6,10}\b',
+        'date_of_birth': r'\b(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}\b',
+        'credit_card': r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b',
+        'ip_address': r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+    }
+    
+    def detect_phi(self, text: str) -> List[Dict]:
+        """Detect PHI in text and return locations"""
+        findings = []
+        
+        for phi_type, pattern in self.PATTERNS.items():
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                findings.append({
+                    'type': phi_type,
+                    'value': match.group(),
+                    'start': match.start(),
+                    'end': match.end(),
+                    'masked': self._mask_value(match.group(), phi_type)
+                })
+                
+        return findings
+        
+    def mask_phi(self, text: str) -> Tuple[str, List[Dict]]:
+        """Mask all PHI in text and return masked text with audit log"""
+        findings = self.detect_phi(text)
+        masked_text = text
+        audit_log = []
+        
+        # Sort by position descending to preserve positions during replacement
+        for finding in sorted(findings, key=lambda x: x['start'], reverse=True):
+            masked_text = (
+                masked_text[:finding['start']] + 
+                finding['masked'] + 
+                masked_text[finding['end']:]
+            )
+            
+            audit_log.append({
+                'type': finding['type'],
+                'original_hash': hashlib.sha256(finding['value'].encode()).hexdigest(),
+                'masked_value': finding['masked'],
+                'position': finding['start']
+            })
+            
+        return masked_text, audit_log
+        
+    def _mask_value(self, value: str, phi_type: str) -> str:
+        """Mask a PHI value based on type"""
+        if phi_type == 'ssn':
+            return 'XXX-XX-' + value[-4:]
+        elif phi_type == 'phone':
+            return 'XXX-XXX-' + value[-4:]
+        elif phi_type == 'email':
+            parts = value.split('@')
+            return parts[0][:2] + '***@' + parts[1]
+        elif phi_type == 'credit_card':
+            return 'XXXX-XXXX-XXXX-' + value[-4:]
+        else:
+            return '[REDACTED]'
+
+
+# Usage example
+if __name__ == '__main__':
+    detector = PHIDetector()
+    
+    sample_text = """
+    Patient John Smith, SSN 123-45-6789, was seen on 01/15/2024.
+    Contact: john.smith@email.com, phone 555-123-4567.
+    MRN: 12345678
+    """
+    
+    masked, audit = detector.mask_phi(sample_text)
+    print("Masked text:", masked)
+    print("Audit log:", audit)
+```
+
+## Vulnerability Scanning
+
+### Container Security with Trivy
+
+```yaml
+# Trivy vulnerability scanning configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trivy-config
+  namespace: security
+data:
+  trivy.yaml: |
+    scan:
+      security-checks:
+        - vuln
+        - secret
+        - config
+        - license
+        
+    severity:
+      - CRITICAL
+      - HIGH
+      - MEDIUM
+      
+    vulnerability:
+      type:
+        - os
+        - library
+        
+    secret:
+      config: /etc/trivy/secret-config.yaml
+      
+    image:
+      removed-pkgs: true
+      
+    cache:
+      backend: redis
+      redis:
+        addr: redis.security:6379
+        
+    db:
+      repository: ghcr.io/aquasecurity/trivy-db
+
+---
+# Trivy Operator for continuous scanning
+apiVersion: aquasecurity.github.io/v1alpha1
+kind: ClusterComplianceReport
+metadata:
+  name: legal-tech-compliance
+spec:
+  cron: "0 */6 * * *"  # Every 6 hours
+  reportType: summary
+  compliance:
+    - name: nsa
+    - name: cis
+```
+
+### Snyk Integration
+
+```yaml
+# .github/workflows/security-scan.yaml
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * *'  # Daily
+
+jobs:
+  snyk-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --fail-on=all
+          
+      - name: Run Snyk Infrastructure as Code
+        uses: snyk/actions/iac@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          file: terraform/
+          args: --severity-threshold=high
+          
+      - name: Run Snyk Container
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.ECR_REGISTRY }}/legal-tech:${{ github.sha }}
+          args: --severity-threshold=high
+          
+      - name: Upload results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk.sarif
+```
+
+## Incident Response Automation
+
+### Incident Response Playbook
+
+```yaml
+# Incident Response Automation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incident-response-playbook
+  namespace: security
+data:
+  playbook.yaml: |
+    incidents:
+      security_breach:
+        severity: critical
+        escalation: immediate
+        steps:
+          - name: "Isolate affected systems"
+            action: kubectl_network_isolation
+            automated: true
+            
+          - name: "Preserve evidence"
+            action: snapshot_volumes
+            automated: true
+            
+          - name: "Notify security team"
+            action: pagerduty_alert
+            automated: true
+            
+          - name: "Activate incident response team"
+            action: teams_notification
+            automated: true
+            
+          - name: "Begin forensic investigation"
+            action: manual
+            automated: false
+            
+      unauthorized_access:
+        severity: high
+        escalation: 15_minutes
+        steps:
+          - name: "Block source IP"
+            action: waf_block_ip
+            automated: true
+            
+          - name: "Revoke session tokens"
+            action: revoke_tokens
+            automated: true
+            
+          - name: "Audit access logs"
+            action: export_logs
+            automated: true
+            
+      data_exfiltration:
+        severity: critical
+        escalation: immediate
+        steps:
+          - name: "Block outbound traffic"
+            action: network_egress_block
+            automated: true
+            
+          - name: "Identify affected data"
+            action: data_classification_scan
+            automated: true
+            
+          - name: "Notify legal and compliance"
+            action: email_notification
+            automated: true
+```
+
+### Automated Containment
+
+```python
+#!/usr/bin/env python3
+"""
+Automated Incident Containment
+"""
+
+import boto3
+import kubernetes
+from kubernetes import client, config
+import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class IncidentContainment:
+    """Automated incident containment procedures"""
+    
+    def __init__(self):
+        config.load_kube_config()
+        self.k8s_core = client.CoreV1Api()
+        self.k8s_networking = client.NetworkingV1Api()
+        self.ec2 = boto3.client('ec2')
+        self.waf = boto3.client('wafv2')
+        
+    def isolate_pod(self, namespace: str, pod_name: str):
+        """Isolate a pod by applying deny-all network policy"""
+        logger.info(f"Isolating pod {pod_name} in namespace {namespace}")
+        
+        policy = {
+            'apiVersion': 'networking.k8s.io/v1',
+            'kind': 'NetworkPolicy',
+            'metadata': {
+                'name': f'isolate-{pod_name}',
+                'namespace': namespace
+            },
+            'spec': {
+                'podSelector': {
+                    'matchLabels': {
+                        'app': pod_name
+                    }
+                },
+                'policyTypes': ['Ingress', 'Egress'],
+                'ingress': [],  # Deny all ingress
+                'egress': []    # Deny all egress
+            }
+        }
+        
+        self.k8s_networking.create_namespaced_network_policy(
+            namespace=namespace,
+            body=policy
+        )
+        
+        logger.info(f"Pod {pod_name} isolated successfully")
+        
+    def block_ip_waf(self, ip_address: str, rule_group_arn: str):
+        """Block an IP address at the WAF level"""
+        logger.info(f"Blocking IP {ip_address} in WAF")
+        
+        # Add IP to blocklist
+        ip_set_id = 'security-blocklist'
+        
+        self.waf.update_ip_set(
+            Name=ip_set_id,
+            Scope='REGIONAL',
+            Id=ip_set_id,
+            LockToken=self._get_lock_token(ip_set_id),
+            Addresses=[f"{ip_address}/32"]
+        )
+        
+        logger.info(f"IP {ip_address} blocked in WAF")
+        
+    def snapshot_evidence(self, instance_id: str) -> str:
+        """Create forensic snapshot of an instance"""
+        logger.info(f"Creating forensic snapshot for instance {instance_id}")
+        
+        # Get volumes attached to instance
+        response = self.ec2.describe_instances(InstanceIds=[instance_id])
+        volumes = []
+        
+        for reservation in response['Reservations']:
+            for instance in reservation['Instances']:
+                for mapping in instance.get('BlockDeviceMappings', []):
+                    volumes.append(mapping['Ebs']['VolumeId'])
+                    
+        # Create snapshots
+        snapshot_ids = []
+        for volume_id in volumes:
+            snapshot = self.ec2.create_snapshot(
+                VolumeId=volume_id,
+                Description=f"Forensic snapshot - Incident response - {instance_id}",
+                TagSpecifications=[{
+                    'ResourceType': 'snapshot',
+                    'Tags': [
+                        {'Key': 'Purpose', 'Value': 'ForensicEvidence'},
+                        {'Key': 'SourceInstance', 'Value': instance_id}
+                    ]
+                }]
+            )
+            snapshot_ids.append(snapshot['SnapshotId'])
+            
+        logger.info(f"Created snapshots: {snapshot_ids}")
+        return snapshot_ids
+        
+    def revoke_all_sessions(self, user_id: str):
+        """Revoke all active sessions for a user"""
+        logger.info(f"Revoking all sessions for user {user_id}")
+        
+        # Delete all user sessions from Redis
+        # This would integrate with your session management system
+        
+        # Rotate any API keys
+        # Force password reset
+        
+        logger.info(f"All sessions revoked for user {user_id}")
+
+
+if __name__ == '__main__':
+    containment = IncidentContainment()
+    
+    # Example: Isolate a compromised pod
+    # containment.isolate_pod('legal-tech', 'document-processor')
+    
+    # Example: Block an attacking IP
+    # containment.block_ip_waf('1.2.3.4', 'arn:aws:wafv2:...')
+```
+
+## Security Validation Scripts
+
+### Continuous Compliance Monitoring
+
+```bash
+#!/bin/bash
+# scripts/security-validation.sh
+
+set -euo pipefail
+
+echo "=========================================="
+echo "Security Validation Suite"
+echo "=========================================="
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+REPORT_DIR="/tmp/security-reports/${TIMESTAMP}"
+mkdir -p "${REPORT_DIR}"
+
+# 1. Kubernetes Security Audit
+echo "=== Kubernetes Security Audit ==="
+echo "Checking Pod Security Standards..."
+kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.labels.pod-security\.kubernetes\.io/enforce}{"\n"}{end}' | tee "${REPORT_DIR}/pss-status.txt"
+
+echo "Checking for privileged containers..."
+kubectl get pods -A -o json | jq -r '.items[] | select(.spec.containers[].securityContext.privileged == true) | "\(.metadata.namespace)/\(.metadata.name)"' | tee "${REPORT_DIR}/privileged-pods.txt"
+
+echo "Checking for containers running as root..."
+kubectl get pods -A -o json | jq -r '.items[] | select(.spec.containers[].securityContext.runAsNonRoot != true) | "\(.metadata.namespace)/\(.metadata.name)"' | tee "${REPORT_DIR}/root-pods.txt"
+
+# 2. Network Policy Audit
+echo "=== Network Policy Audit ==="
+echo "Namespaces without network policies..."
+for ns in $(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}'); do
+  policy_count=$(kubectl get networkpolicies -n "$ns" --no-headers 2>/dev/null | wc -l)
+  if [ "$policy_count" -eq 0 ]; then
+    echo "$ns: No network policies" | tee -a "${REPORT_DIR}/network-policy-gaps.txt"
+  fi
+done
+
+# 3. Secrets Audit
+echo "=== Secrets Audit ==="
+echo "Checking for unencrypted secrets in etcd..."
+kubectl get secrets -A -o json | jq -r '.items[] | select(.metadata.annotations["kubernetes.io/created-by"] != "kms-plugin") | "\(.metadata.namespace)/\(.metadata.name)"' | tee "${REPORT_DIR}/unencrypted-secrets.txt"
+
+# 4. RBAC Audit
+echo "=== RBAC Audit ==="
+echo "ClusterRoleBindings with cluster-admin..."
+kubectl get clusterrolebindings -o json | jq -r '.items[] | select(.roleRef.name == "cluster-admin") | .metadata.name' | tee "${REPORT_DIR}/cluster-admin-bindings.txt"
+
+# 5. Image Security
+echo "=== Container Image Security ==="
+echo "Checking for latest tags..."
+kubectl get pods -A -o json | jq -r '.items[].spec.containers[] | select(.image | contains(":latest") or (contains(":") | not)) | .image' | sort -u | tee "${REPORT_DIR}/latest-images.txt"
+
+# 6. AWS Security Checks
+echo "=== AWS Security Audit ==="
+
+echo "Checking for public S3 buckets..."
+aws s3api list-buckets --query 'Buckets[*].Name' --output text | while read bucket; do
+  acl=$(aws s3api get-bucket-acl --bucket "$bucket" 2>/dev/null | jq -r '.Grants[] | select(.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers") | .Permission')
+  if [ -n "$acl" ]; then
+    echo "PUBLIC: $bucket ($acl)" | tee -a "${REPORT_DIR}/public-buckets.txt"
+  fi
+done
+
+echo "Checking for unencrypted RDS instances..."
+aws rds describe-db-instances --query 'DBInstances[?StorageEncrypted==`false`].DBInstanceIdentifier' --output text | tee "${REPORT_DIR}/unencrypted-rds.txt"
+
+echo "Checking for security groups with 0.0.0.0/0..."
+aws ec2 describe-security-groups --query 'SecurityGroups[*].[GroupId,GroupName,IpPermissions[?contains(IpRanges[*].CidrIp, `0.0.0.0/0`)]]' --output json | tee "${REPORT_DIR}/open-security-groups.json"
+
+# 7. Generate Summary Report
+echo "=== Generating Summary Report ==="
+cat > "${REPORT_DIR}/summary.md" << EOF
+# Security Validation Report
+**Generated:** ${TIMESTAMP}
+
+## Findings Summary
+
+### Kubernetes Security
+- Privileged pods: $(wc -l < "${REPORT_DIR}/privileged-pods.txt")
+- Root containers: $(wc -l < "${REPORT_DIR}/root-pods.txt")
+- Namespaces without network policies: $(wc -l < "${REPORT_DIR}/network-policy-gaps.txt")
+
+### AWS Security
+- Public S3 buckets: $(wc -l < "${REPORT_DIR}/public-buckets.txt" 2>/dev/null || echo 0)
+- Unencrypted RDS: $(wc -l < "${REPORT_DIR}/unencrypted-rds.txt")
+
+### Image Security
+- Images using :latest: $(wc -l < "${REPORT_DIR}/latest-images.txt")
+
+## Recommendations
+See individual report files in ${REPORT_DIR} for details.
+EOF
+
+echo "=========================================="
+echo "Security validation complete!"
+echo "Reports saved to: ${REPORT_DIR}"
+echo "=========================================="
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment Automation" icon="rocket" href="/deep-dive/deployment">
+    Automate secure deployments
+  </Card>
+  <Card title="Team Training" icon="graduation-cap" href="/deep-dive/team-training">
+    Security training materials
+  </Card>
+  <Card title="System Architecture" icon="sitemap" href="/deep-dive/architecture">
+    Security architecture patterns
+  </Card>
+  <Card title="Phase Expansion" icon="chart-line" href="/deep-dive/phase-expansion">
+    Implementation roadmap
+  </Card>
+</CardGroup>

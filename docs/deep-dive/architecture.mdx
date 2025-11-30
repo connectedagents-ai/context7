@@ -1,0 +1,984 @@
+---
+title: System Architecture Deep Dive
+sidebarTitle: Architecture
+description: Complete system architecture for the Legal Tech Document Intelligence Platform
+---
+
+# System Architecture Deep Dive
+
+This document provides a comprehensive deep dive into the system architecture of the Legal Tech Document Intelligence Platform, including microservices design, data pipelines, scaling strategies, and integration patterns.
+
+## High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CLIENTS & INTERFACES                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│   Web App    │   Mobile App   │   API Clients   │   Partner Integrations    │
+└──────┬───────┴───────┬────────┴────────┬────────┴───────────┬───────────────┘
+       │               │                 │                    │
+       ▼               ▼                 ▼                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            API GATEWAY LAYER                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   Kong/     │  │   Rate      │  │   Auth/     │  │   Request           │ │
+│  │   Nginx     │  │   Limiting  │  │   OAuth     │  │   Routing           │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MICROSERVICES LAYER                                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+│  │  Document    │  │     AI       │  │  Compliance  │  │     Search       │ │
+│  │  Processor   │  │ Orchestrator │  │   Engine     │  │    Service       │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────────┘ │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+│  │   User       │  │   Matter     │  │  Integration │  │   Notification   │ │
+│  │  Service     │  │   Service    │  │   Gateway    │  │    Service       │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────────┘ │
+│  ┌──────────────┐  ┌──────────────┐                                         │
+│  │   Audit      │  │   Billing    │                                         │
+│  │   Service    │  │   Service    │                                         │
+│  └──────────────┘  └──────────────┘                                         │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            MESSAGE QUEUE LAYER                               │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │                        Amazon SQS / Redis Streams                       ││
+│  │   [document-processing] [ai-tasks] [notifications] [audit-events]       ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DATA LAYER                                      │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────┐ │
+│  │  Aurora    │  │   Neo4j    │  │  Weaviate  │  │   Redis    │  │   S3   │ │
+│  │ PostgreSQL │  │   Graph    │  │   Vector   │  │   Cache    │  │ Storage│ │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘  └────────┘ │
+│  ┌────────────┐  ┌────────────┐                                             │
+│  │ OpenSearch │  │ TimeSeries │                                             │
+│  │   Index    │  │ (Timestream)                                             │
+│  └────────────┘  └────────────┘                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Microservices Architecture
+
+### Service Overview
+
+| Service | Purpose | Technology | Scaling Strategy |
+|---------|---------|------------|------------------|
+| API Gateway | Request routing, auth | Kong/Nginx | Horizontal |
+| Document Processor | Document ingestion | Python/FastAPI | Queue-based |
+| AI Orchestrator | LLM coordination | Python/LangGraph | Horizontal + GPU |
+| Compliance Engine | Regulatory checks | Python/FastAPI | Horizontal |
+| Search Service | Full-text search | Python/FastAPI | Read replicas |
+| User Service | Authentication | Node.js/Express | Horizontal |
+| Matter Service | Case management | Python/FastAPI | Horizontal |
+| Integration Gateway | External APIs | Python/FastAPI | Horizontal |
+| Notification Service | Alerts/emails | Node.js | Queue-based |
+| Audit Service | Logging/compliance | Python/FastAPI | Append-only |
+| Billing Service | Usage/invoicing | Node.js | Horizontal |
+
+### Service Communication Patterns
+
+```yaml
+communication_patterns:
+  synchronous:
+    protocol: "HTTP/2 with gRPC for internal"
+    timeout: "30 seconds default"
+    retry:
+      max_attempts: 3
+      backoff: "exponential"
+      jitter: true
+    circuit_breaker:
+      failure_threshold: 5
+      reset_timeout: 30s
+      half_open_requests: 3
+      
+  asynchronous:
+    broker: "Amazon SQS"
+    patterns:
+      - "Event-driven"
+      - "Saga orchestration"
+      - "CQRS"
+    dead_letter:
+      enabled: true
+      max_retries: 3
+      
+  service_mesh:
+    platform: "Istio"
+    features:
+      - mTLS
+      - Traffic management
+      - Observability
+      - Rate limiting
+```
+
+### Document Processor Architecture
+
+```python
+"""
+Document Processor Service Architecture
+Handles document ingestion, OCR, and initial processing
+"""
+
+# Architecture components
+class DocumentProcessorArchitecture:
+    """
+    Components:
+    1. API Layer - FastAPI endpoints for document upload
+    2. Processing Pipeline - Async document processing
+    3. Storage Layer - S3 for documents, PostgreSQL for metadata
+    4. Queue Integration - SQS for async processing
+    5. OCR Engine - Tesseract/AWS Textract
+    """
+    
+    def __init__(self):
+        self.components = {
+            "api": {
+                "framework": "FastAPI",
+                "endpoints": [
+                    "POST /documents - Upload document",
+                    "GET /documents/{id} - Get document",
+                    "GET /documents - List documents",
+                    "DELETE /documents/{id} - Delete document",
+                    "POST /documents/{id}/reprocess - Reprocess"
+                ]
+            },
+            "processing": {
+                "steps": [
+                    "1. File validation and virus scan",
+                    "2. Content extraction (text, images)",
+                    "3. OCR for scanned documents",
+                    "4. Text cleaning and normalization",
+                    "5. Initial classification",
+                    "6. Queue for AI analysis"
+                ]
+            },
+            "storage": {
+                "documents": "S3 with SSE-KMS",
+                "metadata": "Aurora PostgreSQL",
+                "cache": "ElastiCache Redis"
+            }
+        }
+
+# Processing Pipeline
+async def process_document(document_id: str):
+    """
+    Document processing pipeline
+    
+    Flow:
+    1. Fetch document from S3
+    2. Validate and scan for viruses
+    3. Extract text based on file type
+    4. Run OCR if needed (PDF images, scanned docs)
+    5. Clean and normalize text
+    6. Run initial classification
+    7. Store results and queue for AI analysis
+    """
+    
+    # Step 1: Fetch document
+    document = await fetch_from_s3(document_id)
+    
+    # Step 2: Validate
+    await validate_document(document)
+    await virus_scan(document)
+    
+    # Step 3: Extract text
+    if document.mime_type == "application/pdf":
+        text = await extract_pdf_text(document)
+    elif document.mime_type.startswith("image/"):
+        text = await run_ocr(document)
+    elif document.mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        text = await extract_docx_text(document)
+    else:
+        text = await extract_plain_text(document)
+    
+    # Step 4: OCR enhancement
+    if needs_ocr_enhancement(text):
+        text = await run_ocr(document)
+    
+    # Step 5: Clean and normalize
+    text = await clean_text(text)
+    text = await normalize_text(text)
+    
+    # Step 6: Initial classification
+    classification = await classify_document(text)
+    
+    # Step 7: Store and queue
+    await store_extracted_text(document_id, text)
+    await update_classification(document_id, classification)
+    await queue_for_ai_analysis(document_id)
+```
+
+## AI Orchestrator Architecture
+
+### Agent Swarm Design
+
+```yaml
+agent_swarm:
+  total_agents: 32
+  teams:
+    litigation_team:
+      agents:
+        - name: "Discovery Analyst"
+          purpose: "Analyze documents for discovery"
+          capabilities:
+            - document_classification
+            - relevance_scoring
+            - key_fact_extraction
+            
+        - name: "Privilege Detector"
+          purpose: "Identify privileged communications"
+          capabilities:
+            - attorney_client_detection
+            - work_product_identification
+            - waiver_risk_assessment
+            
+        - name: "Timeline Builder"
+          purpose: "Construct case timelines"
+          capabilities:
+            - date_extraction
+            - event_sequencing
+            - chronology_generation
+            
+        - name: "Deposition Preparer"
+          purpose: "Prepare deposition materials"
+          capabilities:
+            - witness_identification
+            - key_document_flagging
+            - question_suggestion
+            
+        - name: "Settlement Analyst"
+          purpose: "Analyze settlement scenarios"
+          capabilities:
+            - damage_calculation
+            - precedent_analysis
+            - outcome_prediction
+            
+    environmental_team:
+      agents:
+        - name: "FERC Compliance Monitor"
+          purpose: "Monitor FERC compliance"
+          capabilities:
+            - regulation_tracking
+            - filing_deadline_monitoring
+            - compliance_gap_detection
+            
+        - name: "Environmental Impact Analyzer"
+          purpose: "Assess environmental impacts"
+          capabilities:
+            - impact_assessment
+            - mitigation_identification
+            - permit_requirement_analysis
+            
+        - name: "Remediation Tracker"
+          purpose: "Track remediation efforts"
+          capabilities:
+            - progress_monitoring
+            - cost_tracking
+            - deadline_management
+            
+    contract_team:
+      agents:
+        - name: "Clause Extractor"
+          purpose: "Extract and classify clauses"
+          capabilities:
+            - clause_identification
+            - clause_categorization
+            - standard_vs_custom_detection
+            
+        - name: "Risk Scorer"
+          purpose: "Score contract risks"
+          capabilities:
+            - risk_identification
+            - severity_assessment
+            - mitigation_suggestions
+            
+        - name: "Obligation Tracker"
+          purpose: "Track contractual obligations"
+          capabilities:
+            - deadline_extraction
+            - responsibility_assignment
+            - reminder_scheduling
+            
+    due_diligence_team:
+      agents:
+        - name: "Financial Analyzer"
+          purpose: "Analyze financial documents"
+          capabilities:
+            - financial_statement_analysis
+            - ratio_calculation
+            - trend_identification
+            
+        - name: "Title Reviewer"
+          purpose: "Review title documents"
+          capabilities:
+            - ownership_verification
+            - encumbrance_identification
+            - chain_of_title_analysis
+            
+        - name: "Red Flag Detector"
+          purpose: "Identify deal red flags"
+          capabilities:
+            - anomaly_detection
+            - pattern_recognition
+            - risk_alerting
+            
+    operations_team:
+      agents:
+        - name: "Quality Controller"
+          purpose: "Ensure output quality"
+          capabilities:
+            - accuracy_verification
+            - consistency_checking
+            - error_correction
+            
+        - name: "Workflow Coordinator"
+          purpose: "Coordinate agent workflows"
+          capabilities:
+            - task_assignment
+            - progress_tracking
+            - bottleneck_resolution
+```
+
+### LLM Orchestration
+
+```python
+"""
+LLM Orchestration Layer
+Manages model selection, caching, and cost optimization
+"""
+
+from typing import Dict, List, Optional, Literal
+from dataclasses import dataclass
+from enum import Enum
+import hashlib
+import json
+
+class ModelProvider(Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    LOCAL = "local"
+
+@dataclass
+class ModelConfig:
+    provider: ModelProvider
+    model_name: str
+    max_tokens: int
+    temperature: float
+    cost_per_1k_input: float
+    cost_per_1k_output: float
+    latency_p50_ms: int
+    capabilities: List[str]
+
+class LLMOrchestrator:
+    """
+    Orchestrates LLM requests across multiple providers
+    with intelligent routing, caching, and cost optimization.
+    """
+    
+    def __init__(self):
+        self.models = self._initialize_models()
+        self.cache = SemanticCache()
+        self.metrics = MetricsCollector()
+        
+    def _initialize_models(self) -> Dict[str, ModelConfig]:
+        return {
+            "gpt-4-turbo": ModelConfig(
+                provider=ModelProvider.OPENAI,
+                model_name="gpt-4-turbo-preview",
+                max_tokens=128000,
+                temperature=0.1,
+                cost_per_1k_input=0.01,
+                cost_per_1k_output=0.03,
+                latency_p50_ms=2000,
+                capabilities=["reasoning", "coding", "analysis", "legal"]
+            ),
+            "gpt-3.5-turbo": ModelConfig(
+                provider=ModelProvider.OPENAI,
+                model_name="gpt-3.5-turbo",
+                max_tokens=16385,
+                temperature=0.1,
+                cost_per_1k_input=0.0005,
+                cost_per_1k_output=0.0015,
+                latency_p50_ms=500,
+                capabilities=["general", "classification", "extraction"]
+            ),
+            "claude-3-opus": ModelConfig(
+                provider=ModelProvider.ANTHROPIC,
+                model_name="claude-3-opus-20240229",
+                max_tokens=200000,
+                temperature=0.1,
+                cost_per_1k_input=0.015,
+                cost_per_1k_output=0.075,
+                latency_p50_ms=3000,
+                capabilities=["reasoning", "analysis", "legal", "long_context"]
+            ),
+            "claude-3-sonnet": ModelConfig(
+                provider=ModelProvider.ANTHROPIC,
+                model_name="claude-3-sonnet-20240229",
+                max_tokens=200000,
+                temperature=0.1,
+                cost_per_1k_input=0.003,
+                cost_per_1k_output=0.015,
+                latency_p50_ms=1500,
+                capabilities=["general", "analysis", "coding"]
+            ),
+            "llama-3-70b": ModelConfig(
+                provider=ModelProvider.LOCAL,
+                model_name="meta-llama/Llama-3-70b-chat-hf",
+                max_tokens=8192,
+                temperature=0.1,
+                cost_per_1k_input=0.0001,  # Compute cost only
+                cost_per_1k_output=0.0001,
+                latency_p50_ms=1000,
+                capabilities=["general", "sensitive_data"]
+            )
+        }
+        
+    async def route_request(
+        self,
+        task_type: str,
+        prompt: str,
+        context: Optional[str] = None,
+        preferences: Optional[Dict] = None
+    ) -> Dict:
+        """
+        Route request to optimal model based on task and preferences
+        """
+        
+        # Check cache first
+        cache_key = self._generate_cache_key(task_type, prompt, context)
+        cached_result = await self.cache.get(cache_key)
+        if cached_result:
+            self.metrics.record_cache_hit()
+            return cached_result
+            
+        # Select model
+        model = self._select_model(task_type, preferences)
+        
+        # Execute request
+        result = await self._execute_request(model, prompt, context)
+        
+        # Cache result
+        await self.cache.set(cache_key, result)
+        
+        # Record metrics
+        self.metrics.record_request(
+            model=model.model_name,
+            tokens_in=result["usage"]["input_tokens"],
+            tokens_out=result["usage"]["output_tokens"],
+            latency_ms=result["latency_ms"],
+            cost=self._calculate_cost(model, result["usage"])
+        )
+        
+        return result
+        
+    def _select_model(
+        self,
+        task_type: str,
+        preferences: Optional[Dict] = None
+    ) -> ModelConfig:
+        """
+        Select optimal model based on task requirements
+        """
+        
+        # Task to capability mapping
+        task_capabilities = {
+            "legal_analysis": ["legal", "reasoning"],
+            "privilege_detection": ["legal", "sensitive_data"],
+            "contract_review": ["legal", "analysis"],
+            "document_classification": ["classification"],
+            "entity_extraction": ["extraction"],
+            "summarization": ["general"],
+            "compliance_check": ["legal", "reasoning"]
+        }
+        
+        required_capabilities = task_capabilities.get(task_type, ["general"])
+        
+        # Filter models by capabilities
+        eligible_models = [
+            model for model in self.models.values()
+            if all(cap in model.capabilities for cap in required_capabilities)
+        ]
+        
+        # Apply preferences
+        if preferences:
+            if preferences.get("prefer_local"):
+                local_models = [m for m in eligible_models if m.provider == ModelProvider.LOCAL]
+                if local_models:
+                    eligible_models = local_models
+                    
+            if preferences.get("optimize_cost"):
+                eligible_models.sort(key=lambda m: m.cost_per_1k_input + m.cost_per_1k_output)
+                
+            if preferences.get("optimize_latency"):
+                eligible_models.sort(key=lambda m: m.latency_p50_ms)
+                
+        # Return best match
+        return eligible_models[0] if eligible_models else self.models["gpt-3.5-turbo"]
+
+
+class SemanticCache:
+    """
+    Semantic caching for LLM responses
+    Uses embedding similarity to identify cacheable requests
+    """
+    
+    def __init__(self, similarity_threshold: float = 0.95):
+        self.similarity_threshold = similarity_threshold
+        self.redis_client = Redis()
+        self.embedding_model = EmbeddingModel()
+        
+    async def get(self, key: str) -> Optional[Dict]:
+        """
+        Check cache for semantically similar request
+        """
+        # Try exact match first
+        exact_match = await self.redis_client.get(f"llm_cache:{key}")
+        if exact_match:
+            return json.loads(exact_match)
+            
+        # Try semantic match
+        embedding = await self.embedding_model.embed(key)
+        similar = await self._find_similar(embedding)
+        if similar:
+            return similar
+            
+        return None
+        
+    async def set(
+        self,
+        key: str,
+        value: Dict,
+        ttl: int = 86400  # 24 hours
+    ):
+        """
+        Cache response with TTL
+        """
+        await self.redis_client.setex(
+            f"llm_cache:{key}",
+            ttl,
+            json.dumps(value)
+        )
+        
+        # Store embedding for semantic matching
+        embedding = await self.embedding_model.embed(key)
+        await self._store_embedding(key, embedding)
+```
+
+## Data Pipeline Architecture
+
+```yaml
+data_pipeline:
+  ingestion:
+    sources:
+      - name: "Document Upload"
+        type: "sync"
+        rate: "1000 docs/hour"
+        
+      - name: "Email Integration"
+        type: "async"
+        rate: "5000 emails/hour"
+        
+      - name: "Partner APIs"
+        type: "async"
+        rate: "10000 records/hour"
+        
+    stages:
+      1_validation:
+        - "File format validation"
+        - "Size limits check"
+        - "Virus scanning"
+        - "Duplicate detection"
+        
+      2_extraction:
+        - "Text extraction"
+        - "OCR processing"
+        - "Metadata extraction"
+        - "Image extraction"
+        
+      3_enrichment:
+        - "Entity extraction"
+        - "Classification"
+        - "Language detection"
+        - "PII detection"
+        
+      4_indexing:
+        - "Full-text indexing (OpenSearch)"
+        - "Vector embedding (Weaviate)"
+        - "Graph relationships (Neo4j)"
+        - "Metadata storage (PostgreSQL)"
+        
+  processing:
+    batch:
+      frequency: "Hourly"
+      tasks:
+        - "Model retraining data preparation"
+        - "Analytics aggregation"
+        - "Report generation"
+        - "Compliance scans"
+        
+    stream:
+      latency: "< 5 seconds"
+      tasks:
+        - "Real-time classification"
+        - "Privilege detection"
+        - "Alert generation"
+        - "Dashboard updates"
+```
+
+## Scalability Architecture
+
+### Horizontal Scaling
+
+```yaml
+horizontal_scaling:
+  compute:
+    kubernetes:
+      base_pods: 3
+      max_pods: 100
+      scaling_metrics:
+        - cpu_utilization: 70%
+        - memory_utilization: 80%
+        - queue_depth: 1000
+        - request_latency_p99: 2000ms
+        
+    hpa_config:
+      scaleUpStabilization: 60s
+      scaleDownStabilization: 300s
+      behavior:
+        scaleUp:
+          policies:
+            - type: Percent
+              value: 100
+              periodSeconds: 60
+            - type: Pods
+              value: 4
+              periodSeconds: 60
+          selectPolicy: Max
+        scaleDown:
+          policies:
+            - type: Percent
+              value: 25
+              periodSeconds: 120
+              
+  database:
+    postgresql:
+      writer: 1
+      readers: "1-10 (auto-scaled)"
+      connection_pooling: "PgBouncer"
+      max_connections: 10000
+      
+    neo4j:
+      core_servers: 3
+      read_replicas: "0-5 (auto-scaled)"
+      
+    weaviate:
+      shards: 3
+      replicas_per_shard: 2
+      
+  cache:
+    redis:
+      cluster_mode: true
+      nodes: "6-20"
+      max_memory: "100GB"
+```
+
+### Performance Characteristics
+
+```yaml
+performance:
+  throughput:
+    documents:
+      development: "100 docs/minute"
+      staging: "1,000 docs/minute"
+      production: "10,000-50,000 docs/minute"
+      
+    api_requests:
+      development: "100 req/sec"
+      staging: "1,000 req/sec"
+      production: "10,000 req/sec"
+      
+    ai_analysis:
+      development: "10 docs/minute"
+      staging: "100 docs/minute"
+      production: "1,000 docs/minute"
+      
+  latency:
+    p50: "100ms"
+    p95: "500ms"
+    p99: "2000ms"
+    
+  availability:
+    target: "99.95%"
+    rpo: "1 hour"
+    rto: "4 hours"
+```
+
+## Enterprise Integrations
+
+### Palantir Foundry Integration
+
+```python
+"""
+Palantir Foundry Integration
+Connects to Foundry for identity resolution and data sharing
+"""
+
+from typing import Dict, List, Optional
+import httpx
+from dataclasses import dataclass
+
+@dataclass
+class FoundryConfig:
+    base_url: str
+    api_key: str
+    ontology_rid: str
+    
+class FoundryIntegration:
+    """
+    Integration with Palantir Foundry
+    
+    Capabilities:
+    - Identity resolution for entities
+    - Data synchronization
+    - Privilege management sync
+    - Analytics integration
+    """
+    
+    def __init__(self, config: FoundryConfig):
+        self.config = config
+        self.client = httpx.AsyncClient(
+            base_url=config.base_url,
+            headers={"Authorization": f"Bearer {config.api_key}"}
+        )
+        
+    async def resolve_entity(
+        self,
+        entity_type: str,
+        entity_data: Dict
+    ) -> Optional[Dict]:
+        """
+        Resolve entity against Foundry ontology
+        """
+        response = await self.client.post(
+            f"/ontology/v2/ontologies/{self.config.ontology_rid}/resolve",
+            json={
+                "entityType": entity_type,
+                "properties": entity_data
+            }
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        return None
+        
+    async def sync_documents(
+        self,
+        documents: List[Dict],
+        dataset_rid: str
+    ) -> Dict:
+        """
+        Sync processed documents to Foundry dataset
+        """
+        response = await self.client.post(
+            f"/datasets/v2/datasets/{dataset_rid}/transactions",
+            json={
+                "operation": "APPEND",
+                "records": documents
+            }
+        )
+        
+        return response.json()
+        
+    async def get_privilege_rules(self) -> List[Dict]:
+        """
+        Get privilege management rules from Foundry
+        """
+        response = await self.client.get(
+            f"/ontology/v2/ontologies/{self.config.ontology_rid}/objectTypes/PrivilegeRule/objects"
+        )
+        
+        return response.json().get("data", [])
+```
+
+### Energy.ai Integration
+
+```python
+"""
+Energy.ai Integration
+Connects to Energy.ai for regulatory intelligence and commodity pricing
+"""
+
+class EnergyAIIntegration:
+    """
+    Integration with Energy.ai platform
+    
+    Capabilities:
+    - Regulatory intelligence feeds
+    - Commodity pricing data
+    - Market analysis
+    - Compliance monitoring
+    """
+    
+    def __init__(self, config: Dict):
+        self.api_key = config["api_key"]
+        self.base_url = config["base_url"]
+        
+    async def get_regulatory_updates(
+        self,
+        jurisdiction: str,
+        since: str
+    ) -> List[Dict]:
+        """
+        Get regulatory updates for jurisdiction
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.base_url}/api/v1/regulatory/updates",
+                params={
+                    "jurisdiction": jurisdiction,
+                    "since": since
+                },
+                headers={"X-API-Key": self.api_key}
+            )
+            
+        return response.json()["updates"]
+        
+    async def get_commodity_prices(
+        self,
+        commodities: List[str],
+        date_range: Dict
+    ) -> Dict:
+        """
+        Get commodity pricing data
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/api/v1/commodities/prices",
+                json={
+                    "commodities": commodities,
+                    "start_date": date_range["start"],
+                    "end_date": date_range["end"]
+                },
+                headers={"X-API-Key": self.api_key}
+            )
+            
+        return response.json()
+```
+
+## Security Architecture
+
+### End-to-End Encryption
+
+```yaml
+encryption:
+  at_rest:
+    algorithm: "AES-256-GCM"
+    key_management: "AWS KMS"
+    key_rotation: "90 days"
+    
+    encrypted_resources:
+      - "S3 buckets (SSE-KMS)"
+      - "RDS databases (TDE)"
+      - "EBS volumes"
+      - "ElastiCache"
+      - "OpenSearch"
+      
+  in_transit:
+    protocol: "TLS 1.3"
+    certificate_management: "ACM"
+    mtls: "Enabled for service mesh"
+    
+  application_level:
+    sensitive_fields:
+      encryption: "Field-level encryption"
+      tokenization: "PII tokenization"
+      
+    key_hierarchy:
+      master_key: "KMS CMK"
+      data_keys: "Envelope encryption"
+      field_keys: "Per-field DEKs"
+```
+
+### Privilege Management
+
+```yaml
+privilege_management:
+  attorney_client:
+    detection:
+      - "Communication between attorney and client"
+      - "Legal advice sought or provided"
+      - "Confidential expectation"
+      
+    assertion:
+      workflow: "Automated with human review"
+      confidence_threshold: 0.95
+      review_required_below: 0.85
+      
+    waiver_prevention:
+      - "Automatic flagging"
+      - "Distribution controls"
+      - "Audit logging"
+      
+  work_product:
+    detection:
+      - "Prepared in anticipation of litigation"
+      - "Attorney mental impressions"
+      
+    protection:
+      - "Automatic classification"
+      - "Access controls"
+      - "Production exclusion"
+      
+  audit:
+    logged_events:
+      - "Privilege assertion"
+      - "Privilege review"
+      - "Access attempts"
+      - "Production decisions"
+      
+    retention: "7 years"
+    immutability: "WORM storage"
+```
+
+## System Capabilities Summary
+
+<CardGroup cols={2}>
+  <Card title="32 Specialized Agents" icon="robot">
+    Litigation, Environmental, Regulatory, Underwriting, Operations teams
+  </Card>
+  <Card title="5 Data Stores" icon="database">
+    PostgreSQL, Neo4j, Weaviate, S3, Redis
+  </Card>
+  <Card title="3 LLM Backends" icon="brain">
+    OpenAI (primary), Anthropic (backup), Local (sensitive)
+  </Card>
+  <Card title="Enterprise Integrations" icon="plug">
+    Palantir Foundry, Energy.ai, Breakwater Midstream
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment Automation" icon="rocket" href="/deep-dive/deployment">
+    Deploy the architecture
+  </Card>
+  <Card title="Cost Estimation" icon="calculator" href="/deep-dive/cost-estimation">
+    Understand cost implications
+  </Card>
+  <Card title="Security & Compliance" icon="shield" href="/deep-dive/security-compliance">
+    Implement security controls
+  </Card>
+  <Card title="Phase Expansion" icon="chart-line" href="/deep-dive/phase-expansion">
+    Implementation roadmap
+  </Card>
+</CardGroup>
