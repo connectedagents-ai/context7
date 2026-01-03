@@ -1,0 +1,528 @@
+---
+title: Automated Document Parsing System
+sidebarTitle: Document Parsing
+description: File upload to structured case database workflow
+---
+
+# Automated Document Parsing System
+
+Complete workflow from file upload to structured RICO case database with OCR, entity extraction, and Neo4j storage.
+
+## Workflow Overview
+
+```
+File Upload → OCR/Extract → Entity Extraction → RICO Classification → 
+Neo4j Storage → Timeline Generation → Conflict Detection
+```
+
+---
+
+## Step 1: OCR + Verbatim Extraction
+
+### Supported Input Formats
+
+| Format | Processing Method | Notes |
+|--------|-------------------|-------|
+| PDF | PyPDF2 + Tesseract OCR | Native text extraction with OCR fallback |
+| JPG/PNG | GPT-4o Vision OCR | High-accuracy image text extraction |
+| DOCX | python-docx | Native Microsoft Word parsing |
+| TXT | Direct read | Plain text ingestion |
+| Email (.eml) | email.parser | Header + body + attachment extraction |
+
+### Implementation
+
+```python
+class DocumentExtractor:
+    """
+    Multi-format document extraction with OCR fallback.
+    """
+    
+    async def extract(self, file: UploadFile) -> RawDocument:
+        mime_type = file.content_type
+        
+        if mime_type == "application/pdf":
+            return await self._extract_pdf(file)
+        elif mime_type in ["image/jpeg", "image/png"]:
+            return await self._extract_image_ocr(file)
+        elif mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            return await self._extract_docx(file)
+        elif mime_type == "message/rfc822":
+            return await self._extract_email(file)
+        else:
+            return await self._extract_text(file)
+    
+    async def _extract_image_ocr(self, file: UploadFile) -> RawDocument:
+        """
+        Use GPT-4o Vision for high-accuracy OCR.
+        Preserves original formatting + verbatim text.
+        """
+        image_data = await file.read()
+        base64_image = base64.b64encode(image_data).decode()
+        
+        response = await openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Extract all text from this image verbatim. Preserve formatting."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]
+            }]
+        )
+        
+        return RawDocument(
+            content=response.choices[0].message.content,
+            source_file=file.filename,
+            extraction_method="gpt-4o-vision-ocr"
+        )
+```
+
+### Output
+
+```json
+{
+  "content": "[Full verbatim text from document]",
+  "source_file": "evidence_email_001.pdf",
+  "extraction_method": "pypdf2+tesseract",
+  "page_count": 3,
+  "confidence_score": 0.97
+}
+```
+
+---
+
+## Step 2: Entity Extraction & Structuring
+
+### Entity Types
+
+| Entity Type | Examples | Extraction Method |
+|-------------|----------|-------------------|
+| **Persons** | Name, role, affiliation, timeline | NER + LLM classification |
+| **Organizations** | Entity type, affiliation, role in conspiracy | NER + relationship inference |
+| **Dates/Times** | Event timestamp, context | Regex + LLM normalization |
+| **Amounts** | Financial figures, transaction details | Regex + context extraction |
+| **Events** | Description, parties involved, RICO relevance | LLM summarization |
+| **Legal References** | Case citations, statutes, regulations | Regex + legal database lookup |
+
+### Implementation
+
+```python
+class EntityExtractor:
+    """
+    Extract and structure entities from raw document content.
+    """
+    
+    ENTITY_PROMPT = """
+    Extract all entities from this legal document:
+    
+    {content}
+    
+    Return structured JSON with:
+    - persons: [{name, role, affiliation, first_mentioned_date}]
+    - organizations: [{name, type, role_in_conspiracy}]
+    - dates: [{date, context, event_description}]
+    - amounts: [{value, currency, context, transaction_type}]
+    - events: [{description, parties, date, rico_relevance}]
+    - legal_references: [{citation, type, context}]
+    """
+    
+    async def extract_entities(self, document: RawDocument) -> EntityTable:
+        response = await openai.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[{
+                "role": "user",
+                "content": self.ENTITY_PROMPT.format(content=document.content)
+            }],
+            response_format={"type": "json_object"}
+        )
+        
+        entities = json.loads(response.choices[0].message.content)
+        
+        return EntityTable(
+            persons=entities["persons"],
+            organizations=entities["organizations"],
+            dates=entities["dates"],
+            amounts=entities["amounts"],
+            events=entities["events"],
+            legal_references=entities["legal_references"],
+            source_document=document.source_file
+        )
+```
+
+### Output Structure
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Date & Time | Persons | Subject | Verbatim Text    │
+├─────────────────────────────────────────────────────┤
+│ 2022-06-07  │ Tesla   │ Lead    │ [Full email]     │
+│             │ Robert  │ divert  │ [text here]      │
+│             │ Bailey  │ ion     │                  │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Step 3: RICO Classification & Relationship Mapping
+
+### RICO Classification Categories
+
+For each entity and event, assign:
+
+| Classification | Options | Evidence Required |
+|----------------|---------|-------------------|
+| **Conspiracy** | YES/NO | Evidence of agreement between parties |
+| **Predicate Act Type** | Wire Fraud, Mail Fraud, Tortious Interference, Employee Poaching, Trade Secret Misappropriation, Breach of Contract, Price Manipulation | Specific statutory elements |
+| **Confidence Level** | CONFIRMED, PROBABLE, INFERRED | Direct evidence vs. circumstantial |
+
+### Predicate Act Identification
+
+```python
+class RicoClassifier:
+    """
+    Classify documents and entities for RICO elements.
+    """
+    
+    PREDICATE_ACT_DEFINITIONS = {
+        "wire_fraud": {
+            "elements": [
+                "scheme_to_defraud",
+                "material_misrepresentation",
+                "interstate_wire_communication",
+                "intent_to_defraud"
+            ],
+            "statute": "18 USC § 1343"
+        },
+        "mail_fraud": {
+            "elements": [
+                "scheme_to_defraud",
+                "material_misrepresentation",
+                "use_of_mails",
+                "intent_to_defraud"
+            ],
+            "statute": "18 USC § 1341"
+        },
+        "tortious_interference": {
+            "elements": [
+                "existing_business_relationship",
+                "knowledge_of_relationship",
+                "intentional_interference",
+                "damages"
+            ],
+            "statute": "State common law"
+        },
+        "employee_poaching": {
+            "elements": [
+                "non_compete_agreement",
+                "knowledge_of_agreement",
+                "inducement_to_breach",
+                "competitive_injury"
+            ],
+            "statute": "State statutory + common law"
+        }
+    }
+    
+    async def classify_predicate_acts(
+        self,
+        entities: EntityTable
+    ) -> List[PredicateAct]:
+        predicate_acts = []
+        
+        for event in entities.events:
+            for act_type, definition in self.PREDICATE_ACT_DEFINITIONS.items():
+                score = await self._score_elements(event, definition["elements"])
+                
+                if score > 0.7:  # Threshold for classification
+                    predicate_acts.append(PredicateAct(
+                        type=act_type,
+                        statute=definition["statute"],
+                        evidence=event,
+                        confidence=score,
+                        elements_satisfied=await self._get_satisfied_elements(event, definition["elements"])
+                    ))
+        
+        return predicate_acts
+```
+
+### Relationship Metadata Structure
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Actor 1 | Actor 2 | Relationship | Evidence        │
+├─────────────────────────────────────────────────────┤
+│ Tesla   │ Robert  │ Conspiracy   │ Email dated     │
+│         │ Bailey  │ to divert    │ 2022-08-15      │
+│         │         │ leads        │ (ID: DOC-42)    │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Step 4: Neo4j Graph Storage
+
+### Node Types
+
+```cypher
+// Person Node
+CREATE (p:Person {
+  id: "person_001",
+  name: "Robert Bailey",
+  role: "Sales Manager",
+  affiliation: "Tesla",
+  first_mentioned: date("2022-06-07")
+})
+
+// Organization Node
+CREATE (o:Organization {
+  id: "org_001",
+  name: "Tesla Inc.",
+  type: "Corporation",
+  role_in_conspiracy: "Primary Defendant"
+})
+
+// Event Node
+CREATE (e:Event {
+  id: "event_001",
+  date: date("2022-08-15"),
+  type: "Lead Diversion",
+  description: "Email directing sales leads away from Connected Solar"
+})
+
+// Predicate Act Node
+CREATE (pa:Predicate_Act {
+  id: "predicate_001",
+  type: "Wire Fraud",
+  statute: "18 USC § 1343",
+  evidence_id: "DOC-42",
+  date: date("2022-08-15")
+})
+
+// Document Node
+CREATE (d:Document {
+  id: "DOC-42",
+  type: "Email",
+  date: date("2022-08-15"),
+  verbatim_text: "[Full email content]"
+})
+```
+
+### Edge Types
+
+```cypher
+// Person works for Organization
+MATCH (p:Person {name: "Robert Bailey"}), (o:Organization {name: "Tesla Inc."})
+CREATE (p)-[:WORKS_FOR {start_date: date("2020-01-15")}]->(o)
+
+// Person conspires with Person
+MATCH (p1:Person {name: "Robert Bailey"}), (p2:Person {name: "John Smith"})
+CREATE (p1)-[:CONSPIRES_WITH {evidence: "DOC-42,DOC-48"}]->(p2)
+
+// Event involves Person
+MATCH (e:Event {id: "event_001"}), (p:Person {name: "Robert Bailey"})
+CREATE (e)-[:INVOLVES {role: "Perpetrator"}]->(p)
+
+// Predicate Act supports RICO Claim
+MATCH (pa:Predicate_Act {id: "predicate_001"}), (r:RICO_Claim {id: "claim_001"})
+CREATE (pa)-[:SUPPORTS {weight: 0.95}]->(r)
+
+// Document contains Event
+MATCH (d:Document {id: "DOC-42"}), (e:Event {id: "event_001"})
+CREATE (d)-[:CONTAINS]->(e)
+```
+
+### Graph Schema
+
+```python
+class Neo4jStorage:
+    """
+    Store extracted entities and relationships in Neo4j graph database.
+    """
+    
+    async def store_entities(self, entity_table: EntityTable):
+        async with self.driver.session() as session:
+            # Create Person nodes
+            for person in entity_table.persons:
+                await session.run("""
+                    MERGE (p:Person {name: $name})
+                    SET p.role = $role,
+                        p.affiliation = $affiliation,
+                        p.first_mentioned = date($first_mentioned)
+                """, **person)
+            
+            # Create Organization nodes
+            for org in entity_table.organizations:
+                await session.run("""
+                    MERGE (o:Organization {name: $name})
+                    SET o.type = $type,
+                        o.role_in_conspiracy = $role_in_conspiracy
+                """, **org)
+            
+            # Create relationships
+            for event in entity_table.events:
+                await self._create_event_relationships(session, event)
+    
+    async def store_predicate_acts(self, predicate_acts: List[PredicateAct]):
+        async with self.driver.session() as session:
+            for act in predicate_acts:
+                await session.run("""
+                    CREATE (pa:Predicate_Act {
+                        id: $id,
+                        type: $type,
+                        statute: $statute,
+                        evidence_id: $evidence_id,
+                        date: date($date),
+                        confidence: $confidence
+                    })
+                """, id=act.id, type=act.type, statute=act.statute,
+                    evidence_id=act.evidence.id, date=act.evidence.date,
+                    confidence=act.confidence)
+```
+
+---
+
+## Step 5: Timeline Generation & Conflict Detection
+
+### Timeline Output
+
+```yaml
+Timeline:
+  - date: "2022-06-07"
+    event: "Initial contact"
+    parties: ["Tesla", "Robert Bailey"]
+    evidence: "DOC-001"
+    
+  - date: "2022-08-15"
+    event: "Lead diversion email"
+    parties: ["Robert Bailey", "Connected Solar leads"]
+    evidence: "DOC-42"
+    predicate_act: "Wire Fraud"
+    
+  - date: "2022-09-22"
+    event: "First employee poaching attempt"
+    parties: ["Tesla HR", "Connected Solar employee"]
+    evidence: "DOC-48"
+    predicate_act: "Tortious Interference"
+    
+  - date: "2023-01-10"
+    event: "Tortious interference letter"
+    parties: ["Tesla Legal", "Connected Solar"]
+    evidence: "DOC-71"
+    predicate_act: "Tortious Interference"
+```
+
+### Conflict Detection
+
+```python
+class ConflictDetector:
+    """
+    Detect contradictions and inconsistencies across documents.
+    """
+    
+    async def detect_conflicts(
+        self,
+        entity_table: EntityTable,
+        timeline: Timeline
+    ) -> List[Conflict]:
+        conflicts = []
+        
+        # Check for contradictory statements
+        statements = await self._extract_statements(entity_table)
+        for stmt1, stmt2 in itertools.combinations(statements, 2):
+            if await self._are_contradictory(stmt1, stmt2):
+                conflicts.append(Conflict(
+                    type="CONTRADICTION",
+                    statement_1=stmt1,
+                    statement_2=stmt2,
+                    recommendation="Flag for discovery + deposition prep"
+                ))
+        
+        # Check for timeline inconsistencies
+        for event1, event2 in zip(timeline.events, timeline.events[1:]):
+            if await self._is_chronologically_impossible(event1, event2):
+                conflicts.append(Conflict(
+                    type="TIMELINE_INCONSISTENCY",
+                    event_1=event1,
+                    event_2=event2,
+                    recommendation="Verify dates during deposition"
+                ))
+        
+        return conflicts
+```
+
+### Conflict Output Example
+
+```
+⚠️ Contradiction Detected:
+   
+   Document DOC-42 states: "no leads diverted"
+   Document DOC-48 shows: 15 diverted leads in spreadsheet
+   
+   Recommendation: Flag for discovery + deposition prep
+   Priority: HIGH
+   Assigned to: Lead counsel review
+```
+
+---
+
+## Complete Pipeline Implementation
+
+```python
+class DocumentPipeline:
+    """
+    Complete document processing pipeline from upload to structured database.
+    """
+    
+    def __init__(self):
+        self.extractor = DocumentExtractor()
+        self.entity_extractor = EntityExtractor()
+        self.rico_classifier = RicoClassifier()
+        self.neo4j_storage = Neo4jStorage()
+        self.timeline_generator = TimelineGenerator()
+        self.conflict_detector = ConflictDetector()
+    
+    async def process_document(self, file: UploadFile) -> ProcessingResult:
+        # Step 1: Extract raw content
+        raw_document = await self.extractor.extract(file)
+        
+        # Step 2: Extract entities
+        entity_table = await self.entity_extractor.extract_entities(raw_document)
+        
+        # Step 3: Classify RICO elements
+        predicate_acts = await self.rico_classifier.classify_predicate_acts(entity_table)
+        
+        # Step 4: Store in Neo4j
+        await self.neo4j_storage.store_entities(entity_table)
+        await self.neo4j_storage.store_predicate_acts(predicate_acts)
+        
+        # Step 5: Generate timeline
+        timeline = await self.timeline_generator.generate(entity_table, predicate_acts)
+        
+        # Step 6: Detect conflicts
+        conflicts = await self.conflict_detector.detect_conflicts(entity_table, timeline)
+        
+        return ProcessingResult(
+            document_id=raw_document.id,
+            entities=entity_table,
+            predicate_acts=predicate_acts,
+            timeline=timeline,
+            conflicts=conflicts,
+            status="PROCESSED"
+        )
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Multi-Agent System" icon="robot" href="/deep-dive/litigation/multi-agent">
+    See how agents use parsed data
+  </Card>
+  <Card title="Neo4j Visualization" icon="diagram-project" href="/deep-dive/litigation/neo4j-mapping">
+    Conspiracy network visualization
+  </Card>
+  <Card title="Dream Team Database" icon="users" href="/deep-dive/litigation/dream-team">
+    Expert matching from parsed entities
+  </Card>
+  <Card title="Implementation Guide" icon="rocket" href="/deep-dive/litigation/implementation">
+    Deploy the parsing system
+  </Card>
+</CardGroup>

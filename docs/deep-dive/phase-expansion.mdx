@@ -1,0 +1,1296 @@
+---
+title: Phase Expansion Documentation
+sidebarTitle: Phase Expansion
+description: Week-by-week implementation plan and production code templates
+---
+
+# Phase Expansion Documentation
+
+This document provides a comprehensive week-by-week implementation plan for the Legal Tech Document Intelligence Platform, including production code templates and post-launch operations.
+
+## 32-Week Implementation Plan
+
+### Phase 1: Foundation (Weeks 1-8)
+
+```yaml
+phase_1_foundation:
+  objective: "Establish core infrastructure and basic platform capabilities"
+  budget: $850,000
+  team_size: 8
+  
+  week_1_2:
+    name: "Infrastructure Bootstrap"
+    deliverables:
+      - "AWS account structure and IAM policies"
+      - "Terraform module for VPC and networking"
+      - "EKS cluster deployment"
+      - "CI/CD pipeline foundation"
+    success_criteria:
+      - "Development environment operational"
+      - "Team can deploy to development"
+      - "Basic monitoring in place"
+    blockers: []
+    
+  week_3_4:
+    name: "Data Layer Setup"
+    deliverables:
+      - "Aurora PostgreSQL cluster"
+      - "ElastiCache Redis deployment"
+      - "OpenSearch domain configuration"
+      - "S3 buckets with encryption"
+    success_criteria:
+      - "All databases accessible from EKS"
+      - "Backup policies configured"
+      - "Performance baselines established"
+    dependencies:
+      - "week_1_2"
+      
+  week_5_6:
+    name: "Core Services Development"
+    deliverables:
+      - "API Gateway service"
+      - "Authentication service (OAuth 2.0/OIDC)"
+      - "Document ingestion service"
+      - "Basic document storage API"
+    success_criteria:
+      - "API endpoints functional"
+      - "Authentication working with SSO"
+      - "Documents can be uploaded and retrieved"
+    dependencies:
+      - "week_3_4"
+      
+  week_7_8:
+    name: "AI Foundation"
+    deliverables:
+      - "LLM integration layer"
+      - "Prompt management system"
+      - "Basic document classification"
+      - "Text extraction pipeline"
+    success_criteria:
+      - "Documents can be classified with 85%+ accuracy"
+      - "Text extraction working for PDF, Word, images"
+      - "Cost monitoring for LLM usage"
+    dependencies:
+      - "week_5_6"
+      
+  phase_1_gate:
+    review_date: "Week 8"
+    criteria:
+      - "Core platform functional in development"
+      - "All team members onboarded"
+      - "Security baseline audit passed"
+      - "Performance meets SLOs"
+    approvers:
+      - "Engineering Director"
+      - "Security Team"
+      - "Product Owner"
+```
+
+### Phase 2: Core Capabilities (Weeks 9-16)
+
+```yaml
+phase_2_core:
+  objective: "Build core AI capabilities and document processing"
+  budget: $1,200,000
+  team_size: 12
+  
+  week_9_10:
+    name: "Vector Database Integration"
+    deliverables:
+      - "Weaviate deployment and configuration"
+      - "Embedding pipeline for documents"
+      - "Semantic search implementation"
+      - "RAG foundation"
+    success_criteria:
+      - "Documents indexed in vector store"
+      - "Semantic search returning relevant results"
+      - "Query latency < 200ms"
+      
+  week_11_12:
+    name: "Agent Development - Phase 1"
+    deliverables:
+      - "Document Classification Agent"
+      - "Entity Extraction Agent"
+      - "Summarization Agent"
+      - "Agent orchestration framework"
+    success_criteria:
+      - "Classification accuracy > 92%"
+      - "Entity extraction F1 > 0.85"
+      - "Summaries rated 4+/5 by legal team"
+      
+  week_13_14:
+    name: "Compliance Engine"
+    deliverables:
+      - "Regulatory rule engine"
+      - "Privilege detection system"
+      - "Compliance dashboard"
+      - "Alert and notification system"
+    success_criteria:
+      - "Privilege detection accuracy > 95%"
+      - "Real-time compliance monitoring"
+      - "Audit trail complete"
+      
+  week_15_16:
+    name: "Integration Layer"
+    deliverables:
+      - "Palantir Foundry connector"
+      - "Energy.ai integration"
+      - "Breakwater data pipeline"
+      - "API documentation and SDKs"
+    success_criteria:
+      - "Bidirectional data sync working"
+      - "Integration tests passing"
+      - "Documentation complete"
+      
+  phase_2_gate:
+    review_date: "Week 16"
+    criteria:
+      - "Core AI capabilities functional"
+      - "Staging environment operational"
+      - "User acceptance testing passed"
+      - "Integration partners validated"
+```
+
+### Phase 3: Advanced Features (Weeks 17-24)
+
+```yaml
+phase_3_advanced:
+  objective: "Build advanced AI agents and specialized workflows"
+  budget: $1,500,000
+  team_size: 15
+  
+  week_17_18:
+    name: "Litigation Discovery Agent"
+    deliverables:
+      - "Discovery workflow automation"
+      - "Evidence chain tracking"
+      - "Timeline reconstruction"
+      - "Privilege log automation"
+    success_criteria:
+      - "50% reduction in discovery time"
+      - "Complete privilege log generation"
+      - "Full audit trail"
+      
+  week_19_20:
+    name: "Contract Analysis Suite"
+    deliverables:
+      - "Contract clause extraction"
+      - "Risk scoring engine"
+      - "Comparison and diff tools"
+      - "Amendment tracking"
+    success_criteria:
+      - "Clause extraction accuracy > 95%"
+      - "Risk scoring validated by legal team"
+      - "Cross-reference working"
+      
+  week_21_22:
+    name: "Environmental Compliance"
+    deliverables:
+      - "FERC compliance monitoring"
+      - "Environmental impact analysis"
+      - "Regulatory change tracking"
+      - "Remediation workflow"
+    success_criteria:
+      - "FERC filing automation > 80%"
+      - "Environmental flags accuracy > 90%"
+      - "Regulatory updates within 24 hours"
+      
+  week_23_24:
+    name: "Due Diligence Platform"
+    deliverables:
+      - "M&A due diligence workflow"
+      - "Financial document analysis"
+      - "Red flag detection"
+      - "Deal room integration"
+    success_criteria:
+      - "Due diligence time reduced by 60%"
+      - "Red flag detection accuracy > 93%"
+      - "Secure deal room functional"
+      
+  phase_3_gate:
+    review_date: "Week 24"
+    criteria:
+      - "All specialized agents operational"
+      - "Production environment ready"
+      - "Performance testing complete"
+      - "Security penetration testing passed"
+```
+
+### Phase 4: Production Launch (Weeks 25-28)
+
+```yaml
+phase_4_launch:
+  objective: "Deploy to production and onboard initial users"
+  budget: $600,000
+  team_size: 18
+  
+  week_25:
+    name: "Production Hardening"
+    deliverables:
+      - "Production infrastructure deployment"
+      - "Security controls verified"
+      - "Disaster recovery tested"
+      - "Performance optimization complete"
+    success_criteria:
+      - "All security controls in place"
+      - "DR failover tested successfully"
+      - "Performance SLOs met"
+      
+  week_26:
+    name: "Pilot Launch"
+    deliverables:
+      - "Pilot user group onboarded"
+      - "Training materials delivered"
+      - "Support processes established"
+      - "Feedback collection system"
+    success_criteria:
+      - "50 pilot users active"
+      - "NPS > 40"
+      - "No critical issues"
+      
+  week_27:
+    name: "General Availability Prep"
+    deliverables:
+      - "Pilot feedback incorporated"
+      - "Documentation finalized"
+      - "Marketing materials ready"
+      - "Sales enablement complete"
+    success_criteria:
+      - "All pilot issues resolved"
+      - "Documentation 100% complete"
+      - "Sales team trained"
+      
+  week_28:
+    name: "General Availability Launch"
+    deliverables:
+      - "Public launch"
+      - "Press and marketing campaign"
+      - "Customer success handoff"
+      - "Operational runbooks complete"
+    success_criteria:
+      - "System stable under load"
+      - "Support tickets < 10 per day"
+      - "Uptime > 99.9%"
+```
+
+### Phase 5: Scale & Optimize (Weeks 29-32)
+
+```yaml
+phase_5_scale:
+  objective: "Scale platform and optimize operations"
+  budget: $400,000
+  team_size: 12
+  
+  week_29_30:
+    name: "Scaling Infrastructure"
+    deliverables:
+      - "Auto-scaling optimization"
+      - "Multi-region preparation"
+      - "Performance tuning"
+      - "Cost optimization"
+    success_criteria:
+      - "Handle 10x current load"
+      - "Cost per transaction reduced 30%"
+      - "Latency p99 < 500ms"
+      
+  week_31_32:
+    name: "Continuous Improvement"
+    deliverables:
+      - "Feedback loop implementation"
+      - "A/B testing framework"
+      - "Model improvement pipeline"
+      - "Roadmap for Phase 6"
+    success_criteria:
+      - "Monthly improvement cycle established"
+      - "Model accuracy improving week over week"
+      - "Phase 6 roadmap approved"
+```
+
+## Production Code Templates
+
+### Document Processor Service
+
+```python
+"""
+Production Code Template: Document Processor Service
+Full implementation of the document processing microservice
+"""
+
+# services/document-processor/app/main.py
+
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from contextlib import asynccontextmanager
+from prometheus_client import make_asgi_app
+import structlog
+import uvicorn
+
+from app.config import settings
+from app.api.v1 import documents, health, metrics
+from app.middleware.logging import LoggingMiddleware
+from app.middleware.tracing import TracingMiddleware
+from app.database import engine, init_db
+from app.services.document_service import DocumentService
+from app.queue.consumer import start_consumer, stop_consumer
+
+logger = structlog.get_logger()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle"""
+    logger.info("Starting Document Processor Service", version=settings.VERSION)
+    
+    # Initialize database
+    await init_db()
+    
+    # Start message queue consumer
+    await start_consumer()
+    
+    yield
+    
+    # Cleanup
+    logger.info("Shutting down Document Processor Service")
+    await stop_consumer()
+    await engine.dispose()
+
+# Create application
+app = FastAPI(
+    title="Document Processor Service",
+    description="Processes and analyzes legal documents for the Legal Tech Platform",
+    version=settings.VERSION,
+    docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
+    redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
+    lifespan=lifespan
+)
+
+# Add middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(TracingMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount Prometheus metrics
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+# Include routers
+app.include_router(health.router, tags=["Health"])
+app.include_router(documents.router, prefix="/api/v1", tags=["Documents"])
+
+
+# services/document-processor/app/api/v1/documents.py
+
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
+from fastapi.responses import StreamingResponse
+from typing import List, Optional
+from uuid import UUID
+import structlog
+
+from app.schemas.document import (
+    DocumentCreate,
+    DocumentResponse,
+    DocumentListResponse,
+    ProcessingStatus
+)
+from app.services.document_service import DocumentService
+from app.dependencies import get_document_service, get_current_user
+from app.models.user import User
+
+router = APIRouter()
+logger = structlog.get_logger()
+
+
+@router.post("/documents", response_model=DocumentResponse, status_code=201)
+async def create_document(
+    file: UploadFile = File(...),
+    document_type: Optional[str] = None,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    service: DocumentService = Depends(get_document_service),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload a new document for processing"""
+    logger.info(
+        "Document upload initiated",
+        filename=file.filename,
+        user_id=str(current_user.id)
+    )
+    
+    # Validate file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+        
+    allowed_types = [".pdf", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg"]
+    if not any(file.filename.lower().endswith(t) for t in allowed_types):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not supported. Allowed: {allowed_types}"
+        )
+    
+    # Create document record
+    document = await service.create_document(
+        file=file,
+        document_type=document_type,
+        user_id=current_user.id
+    )
+    
+    # Queue for processing
+    background_tasks.add_task(service.queue_for_processing, document.id)
+    
+    return document
+
+
+@router.get("/documents/{document_id}", response_model=DocumentResponse)
+async def get_document(
+    document_id: UUID,
+    service: DocumentService = Depends(get_document_service),
+    current_user: User = Depends(get_current_user)
+):
+    """Get document details by ID"""
+    document = await service.get_document(document_id)
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    # Check access permission
+    if not await service.check_access(document, current_user):
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    return document
+
+
+@router.get("/documents", response_model=DocumentListResponse)
+async def list_documents(
+    skip: int = 0,
+    limit: int = 50,
+    status: Optional[ProcessingStatus] = None,
+    document_type: Optional[str] = None,
+    service: DocumentService = Depends(get_document_service),
+    current_user: User = Depends(get_current_user)
+):
+    """List documents with filtering"""
+    documents, total = await service.list_documents(
+        user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+        status=status,
+        document_type=document_type
+    )
+    
+    return DocumentListResponse(
+        documents=documents,
+        total=total,
+        skip=skip,
+        limit=limit
+    )
+
+
+@router.post("/documents/{document_id}/reprocess")
+async def reprocess_document(
+    document_id: UUID,
+    background_tasks: BackgroundTasks,
+    service: DocumentService = Depends(get_document_service),
+    current_user: User = Depends(get_current_user)
+):
+    """Reprocess a document"""
+    document = await service.get_document(document_id)
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    if not await service.check_access(document, current_user):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Reset status and requeue
+    await service.reset_processing(document_id)
+    background_tasks.add_task(service.queue_for_processing, document_id)
+    
+    return {"message": "Document queued for reprocessing"}
+
+
+# services/document-processor/app/services/document_service.py
+
+from typing import Optional, Tuple, List
+from uuid import UUID
+import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
+import boto3
+
+from app.repositories.document_repository import DocumentRepository
+from app.models.document import Document, ProcessingStatus
+from app.schemas.document import DocumentCreate
+from app.queue.publisher import publish_processing_task
+from app.storage.s3 import S3Storage
+
+logger = structlog.get_logger()
+
+
+class DocumentService:
+    """Service for document operations"""
+    
+    def __init__(
+        self,
+        session: AsyncSession,
+        s3_storage: S3Storage
+    ):
+        self.repository = DocumentRepository(session)
+        self.s3_storage = s3_storage
+        
+    async def create_document(
+        self,
+        file,
+        document_type: Optional[str],
+        user_id: UUID
+    ) -> Document:
+        """Create a new document"""
+        # Upload to S3
+        s3_key = await self.s3_storage.upload_file(file)
+        
+        # Create database record
+        document = await self.repository.create(
+            DocumentCreate(
+                filename=file.filename,
+                s3_key=s3_key,
+                document_type=document_type,
+                user_id=user_id,
+                status=ProcessingStatus.PENDING
+            )
+        )
+        
+        logger.info(
+            "Document created",
+            document_id=str(document.id),
+            filename=file.filename
+        )
+        
+        return document
+        
+    async def get_document(self, document_id: UUID) -> Optional[Document]:
+        """Get document by ID"""
+        return await self.repository.get_by_id(document_id)
+        
+    async def list_documents(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int = 50,
+        status: Optional[ProcessingStatus] = None,
+        document_type: Optional[str] = None
+    ) -> Tuple[List[Document], int]:
+        """List documents with filtering"""
+        return await self.repository.list_for_user(
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            status=status,
+            document_type=document_type
+        )
+        
+    async def queue_for_processing(self, document_id: UUID):
+        """Queue document for AI processing"""
+        await publish_processing_task({
+            "document_id": str(document_id),
+            "task_type": "full_analysis"
+        })
+        
+        await self.repository.update_status(
+            document_id,
+            ProcessingStatus.QUEUED
+        )
+        
+        logger.info("Document queued for processing", document_id=str(document_id))
+        
+    async def check_access(self, document: Document, user) -> bool:
+        """Check if user has access to document"""
+        # Owner has access
+        if document.user_id == user.id:
+            return True
+            
+        # Admins have access
+        if user.is_admin:
+            return True
+            
+        # Team members may have access
+        # Check team membership logic here
+        
+        return False
+```
+
+### AI Orchestrator Service
+
+```python
+"""
+Production Code Template: AI Orchestrator Service
+Handles LLM interactions and agent orchestration
+"""
+
+# services/ai-orchestrator/app/orchestrator/router.py
+
+from typing import Dict, List, Optional
+from enum import Enum
+import structlog
+
+from app.config import settings
+from app.models.request import AnalysisRequest
+from app.providers.openai_provider import OpenAIProvider
+from app.providers.anthropic_provider import AnthropicProvider
+from app.providers.local_provider import LocalLLMProvider
+from app.cache.semantic_cache import SemanticCache
+
+logger = structlog.get_logger()
+
+
+class ModelTier(Enum):
+    """Model tiers for routing"""
+    PREMIUM = "premium"      # GPT-4, Claude-3 Opus
+    STANDARD = "standard"    # GPT-3.5, Claude-3 Sonnet
+    LOCAL = "local"          # Llama, Mistral (on-prem)
+
+
+class ModelRouter:
+    """Routes requests to appropriate LLM provider"""
+    
+    def __init__(self):
+        self.openai = OpenAIProvider()
+        self.anthropic = AnthropicProvider()
+        self.local = LocalLLMProvider()
+        self.cache = SemanticCache()
+        
+        # Routing rules
+        self.task_routing = {
+            "document_classification": ModelTier.STANDARD,
+            "entity_extraction": ModelTier.STANDARD,
+            "summarization": ModelTier.STANDARD,
+            "legal_analysis": ModelTier.PREMIUM,
+            "compliance_check": ModelTier.PREMIUM,
+            "privilege_detection": ModelTier.PREMIUM,
+            "contract_review": ModelTier.PREMIUM,
+            "sensitive_document": ModelTier.LOCAL,  # Keep on-prem
+        }
+        
+    async def route_request(
+        self,
+        request: AnalysisRequest
+    ) -> Dict:
+        """Route request to appropriate model"""
+        
+        # Check cache first
+        cached = await self.cache.get(request)
+        if cached:
+            logger.info("Cache hit", task_type=request.task_type)
+            return cached
+            
+        # Determine routing
+        tier = self._get_tier(request)
+        provider = self._get_provider(tier, request)
+        
+        logger.info(
+            "Routing request",
+            task_type=request.task_type,
+            tier=tier.value,
+            provider=provider.__class__.__name__
+        )
+        
+        # Execute request
+        result = await provider.complete(request)
+        
+        # Cache result
+        await self.cache.set(request, result)
+        
+        return result
+        
+    def _get_tier(self, request: AnalysisRequest) -> ModelTier:
+        """Determine tier based on task and content"""
+        
+        # Check for sensitive content requiring local processing
+        if request.metadata.get("is_sensitive"):
+            return ModelTier.LOCAL
+            
+        # Use task-based routing
+        return self.task_routing.get(
+            request.task_type,
+            ModelTier.STANDARD
+        )
+        
+    def _get_provider(self, tier: ModelTier, request: AnalysisRequest):
+        """Get provider for tier with fallback"""
+        
+        if tier == ModelTier.LOCAL:
+            return self.local
+            
+        if tier == ModelTier.PREMIUM:
+            # Primary: OpenAI GPT-4
+            # Fallback: Anthropic Claude
+            if request.metadata.get("prefer_anthropic"):
+                return self.anthropic
+            return self.openai
+            
+        # Standard tier
+        return self.openai
+
+
+# services/ai-orchestrator/app/agents/litigation_agent.py
+
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+from uuid import UUID
+import structlog
+from langgraph.graph import StateGraph, END
+from langchain_core.messages import HumanMessage, AIMessage
+
+from app.orchestrator.router import ModelRouter
+from app.models.document import Document
+from app.models.analysis import AnalysisResult
+
+logger = structlog.get_logger()
+
+
+class LitigationDiscoveryAgent:
+    """
+    Specialized agent for litigation discovery workflows.
+    Handles document review, privilege detection, and production preparation.
+    """
+    
+    def __init__(self, router: ModelRouter):
+        self.router = router
+        self.graph = self._build_graph()
+        
+    def _build_graph(self) -> StateGraph:
+        """Build the agent workflow graph"""
+        
+        from typing import TypedDict
+        
+        class DiscoveryState(TypedDict):
+            document_id: str
+            content: str
+            classification: Dict
+            entities: List[Dict]
+            privilege_assessment: Dict
+            relevance_score: float
+            production_status: str
+            timeline_events: List[Dict]
+            messages: List
+            
+        workflow = StateGraph(DiscoveryState)
+        
+        # Add nodes
+        workflow.add_node("classify", self._classify_document)
+        workflow.add_node("extract_entities", self._extract_entities)
+        workflow.add_node("assess_privilege", self._assess_privilege)
+        workflow.add_node("score_relevance", self._score_relevance)
+        workflow.add_node("extract_timeline", self._extract_timeline)
+        workflow.add_node("determine_production", self._determine_production)
+        
+        # Define flow
+        workflow.set_entry_point("classify")
+        workflow.add_edge("classify", "extract_entities")
+        workflow.add_edge("extract_entities", "assess_privilege")
+        workflow.add_conditional_edges(
+            "assess_privilege",
+            self._should_continue_to_relevance,
+            {
+                "continue": "score_relevance",
+                "privilege_hold": "determine_production"
+            }
+        )
+        workflow.add_edge("score_relevance", "extract_timeline")
+        workflow.add_edge("extract_timeline", "determine_production")
+        workflow.add_edge("determine_production", END)
+        
+        return workflow.compile()
+        
+    async def analyze_document(
+        self,
+        document: Document,
+        case_context: Dict
+    ) -> AnalysisResult:
+        """Run full discovery analysis on a document"""
+        
+        logger.info(
+            "Starting discovery analysis",
+            document_id=str(document.id)
+        )
+        
+        initial_state = {
+            "document_id": str(document.id),
+            "content": document.extracted_text,
+            "classification": {},
+            "entities": [],
+            "privilege_assessment": {},
+            "relevance_score": 0.0,
+            "production_status": "pending",
+            "timeline_events": [],
+            "messages": [
+                HumanMessage(content=f"Analyze document for case: {case_context['case_name']}")
+            ]
+        }
+        
+        result = await self.graph.ainvoke(initial_state)
+        
+        return AnalysisResult(
+            document_id=document.id,
+            classification=result["classification"],
+            entities=result["entities"],
+            privilege=result["privilege_assessment"],
+            relevance_score=result["relevance_score"],
+            production_status=result["production_status"],
+            timeline_events=result["timeline_events"]
+        )
+        
+    async def _classify_document(self, state: Dict) -> Dict:
+        """Classify document type and category"""
+        
+        prompt = f"""
+        Classify this legal document:
+        
+        Content (first 2000 chars):
+        {state['content'][:2000]}
+        
+        Provide:
+        1. Document type (email, memo, contract, pleading, etc.)
+        2. Primary category (litigation, transactional, regulatory, etc.)
+        3. Date if identifiable
+        4. Key parties mentioned
+        """
+        
+        result = await self.router.route_request({
+            "task_type": "document_classification",
+            "prompt": prompt,
+            "metadata": {"document_id": state["document_id"]}
+        })
+        
+        state["classification"] = result["parsed"]
+        return state
+        
+    async def _extract_entities(self, state: Dict) -> Dict:
+        """Extract named entities and relationships"""
+        
+        prompt = f"""
+        Extract all entities from this legal document:
+        
+        {state['content'][:4000]}
+        
+        Extract:
+        - People (with roles)
+        - Organizations
+        - Dates and time periods
+        - Monetary amounts
+        - Legal citations
+        - Contract references
+        - Geographic locations
+        
+        Return as structured JSON.
+        """
+        
+        result = await self.router.route_request({
+            "task_type": "entity_extraction",
+            "prompt": prompt,
+            "metadata": {"document_id": state["document_id"]}
+        })
+        
+        state["entities"] = result["parsed"]["entities"]
+        return state
+        
+    async def _assess_privilege(self, state: Dict) -> Dict:
+        """Assess attorney-client privilege status"""
+        
+        prompt = f"""
+        Assess attorney-client privilege for this document:
+        
+        Document Type: {state['classification'].get('type', 'unknown')}
+        Content: {state['content'][:4000]}
+        
+        Analyze:
+        1. Is this a communication between attorney and client?
+        2. Was legal advice sought or provided?
+        3. Was confidentiality expected?
+        4. Has privilege been waived?
+        
+        Return:
+        - is_privileged: boolean
+        - privilege_type: attorney-client | work-product | none
+        - confidence: 0-1
+        - basis: explanation
+        - waiver_risk: none | low | medium | high
+        """
+        
+        result = await self.router.route_request({
+            "task_type": "privilege_detection",
+            "prompt": prompt,
+            "metadata": {
+                "document_id": state["document_id"],
+                "is_sensitive": True
+            }
+        })
+        
+        state["privilege_assessment"] = result["parsed"]
+        return state
+        
+    def _should_continue_to_relevance(self, state: Dict) -> str:
+        """Decide if document should continue for relevance scoring"""
+        
+        if state["privilege_assessment"].get("is_privileged", False):
+            confidence = state["privilege_assessment"].get("confidence", 0)
+            if confidence > 0.9:
+                return "privilege_hold"
+                
+        return "continue"
+        
+    async def _score_relevance(self, state: Dict) -> Dict:
+        """Score document relevance to case"""
+        
+        # Relevance scoring implementation
+        state["relevance_score"] = 0.75  # Placeholder
+        return state
+        
+    async def _extract_timeline(self, state: Dict) -> Dict:
+        """Extract timeline events from document"""
+        
+        # Timeline extraction implementation
+        state["timeline_events"] = []  # Placeholder
+        return state
+        
+    async def _determine_production(self, state: Dict) -> Dict:
+        """Determine production status"""
+        
+        privilege = state["privilege_assessment"]
+        
+        if privilege.get("is_privileged") and privilege.get("confidence", 0) > 0.9:
+            state["production_status"] = "privilege_hold"
+        elif state["relevance_score"] > 0.5:
+            state["production_status"] = "produce"
+        else:
+            state["production_status"] = "not_relevant"
+            
+        return state
+```
+
+## Database Infrastructure
+
+### Aurora PostgreSQL Schema
+
+```sql
+-- Database Schema for Legal Tech Platform
+
+-- Enable extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "vector";
+
+-- Documents table
+CREATE TABLE documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    filename VARCHAR(500) NOT NULL,
+    s3_key VARCHAR(1000) NOT NULL,
+    document_type VARCHAR(100),
+    mime_type VARCHAR(100),
+    file_size BIGINT,
+    page_count INTEGER,
+    
+    -- Processing status
+    status VARCHAR(50) DEFAULT 'pending',
+    processing_started_at TIMESTAMP WITH TIME ZONE,
+    processing_completed_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    
+    -- Extracted content
+    extracted_text TEXT,
+    text_hash VARCHAR(64),
+    
+    -- Classification
+    classification JSONB,
+    confidence_score DECIMAL(5, 4),
+    
+    -- Ownership and access
+    user_id UUID NOT NULL REFERENCES users(id),
+    organization_id UUID REFERENCES organizations(id),
+    matter_id UUID REFERENCES matters(id),
+    
+    -- Metadata
+    metadata JSONB DEFAULT '{}',
+    tags TEXT[],
+    
+    -- Compliance
+    is_privileged BOOLEAN DEFAULT FALSE,
+    privilege_type VARCHAR(50),
+    privilege_reviewed_at TIMESTAMP WITH TIME ZONE,
+    privilege_reviewed_by UUID REFERENCES users(id),
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Indexes for documents
+CREATE INDEX idx_documents_user ON documents(user_id);
+CREATE INDEX idx_documents_organization ON documents(organization_id);
+CREATE INDEX idx_documents_matter ON documents(matter_id);
+CREATE INDEX idx_documents_status ON documents(status);
+CREATE INDEX idx_documents_type ON documents(document_type);
+CREATE INDEX idx_documents_created ON documents(created_at DESC);
+CREATE INDEX idx_documents_text_search ON documents USING gin(to_tsvector('english', extracted_text));
+CREATE INDEX idx_documents_tags ON documents USING gin(tags);
+
+-- Entities table
+CREATE TABLE entities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    
+    entity_type VARCHAR(100) NOT NULL,
+    value TEXT NOT NULL,
+    normalized_value TEXT,
+    
+    -- Position in document
+    start_offset INTEGER,
+    end_offset INTEGER,
+    page_number INTEGER,
+    
+    -- Confidence and source
+    confidence DECIMAL(5, 4),
+    extraction_method VARCHAR(50),
+    
+    -- Linking
+    linked_entity_id UUID REFERENCES entities(id),
+    external_id VARCHAR(500),
+    
+    -- Metadata
+    metadata JSONB DEFAULT '{}',
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for entities
+CREATE INDEX idx_entities_document ON entities(document_id);
+CREATE INDEX idx_entities_type ON entities(entity_type);
+CREATE INDEX idx_entities_value ON entities USING gin(value gin_trgm_ops);
+CREATE INDEX idx_entities_normalized ON entities(normalized_value);
+
+-- Analysis results table
+CREATE TABLE analysis_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    
+    analysis_type VARCHAR(100) NOT NULL,
+    model_version VARCHAR(100),
+    
+    -- Results
+    result JSONB NOT NULL,
+    summary TEXT,
+    confidence DECIMAL(5, 4),
+    
+    -- Processing info
+    processing_time_ms INTEGER,
+    tokens_used INTEGER,
+    cost_usd DECIMAL(10, 6),
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Privilege log table (for litigation)
+CREATE TABLE privilege_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    matter_id UUID NOT NULL REFERENCES matters(id),
+    document_id UUID NOT NULL REFERENCES documents(id),
+    
+    -- Bates range
+    bates_begin VARCHAR(50),
+    bates_end VARCHAR(50),
+    
+    -- Document info
+    document_date DATE,
+    document_type VARCHAR(100),
+    
+    -- Parties
+    author TEXT,
+    recipients TEXT[],
+    
+    -- Privilege assertion
+    privilege_type VARCHAR(100) NOT NULL,
+    privilege_description TEXT NOT NULL,
+    
+    -- Review
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'pending',
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Audit log table
+CREATE TABLE audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    
+    -- Actor
+    user_id UUID REFERENCES users(id),
+    user_email VARCHAR(500),
+    ip_address INET,
+    user_agent TEXT,
+    
+    -- Action
+    action VARCHAR(100) NOT NULL,
+    resource_type VARCHAR(100) NOT NULL,
+    resource_id UUID,
+    
+    -- Details
+    changes JSONB,
+    metadata JSONB,
+    
+    -- Timestamp
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Partition audit log by month for performance
+CREATE INDEX idx_audit_log_created ON audit_log(created_at DESC);
+CREATE INDEX idx_audit_log_user ON audit_log(user_id);
+CREATE INDEX idx_audit_log_resource ON audit_log(resource_type, resource_id);
+```
+
+## Post-Launch Operations
+
+### Monitoring Configuration
+
+```yaml
+# monitoring/datadog/dashboards/platform-overview.yaml
+dashboard:
+  title: "Legal Tech Platform Overview"
+  description: "Main operational dashboard"
+  widgets:
+    - title: "Request Rate"
+      type: timeseries
+      queries:
+        - query: "sum:legal_tech.requests{*}.as_count()"
+          display_type: bars
+          
+    - title: "Error Rate"
+      type: timeseries
+      queries:
+        - query: "sum:legal_tech.errors{*}.as_count() / sum:legal_tech.requests{*}.as_count() * 100"
+          display_type: line
+          
+    - title: "P99 Latency"
+      type: timeseries
+      queries:
+        - query: "p99:legal_tech.request_duration{*}"
+          display_type: line
+          
+    - title: "Document Processing Queue"
+      type: query_value
+      queries:
+        - query: "avg:legal_tech.queue_depth{queue:document_processing}"
+          
+    - title: "AI Cost (24h)"
+      type: query_value
+      queries:
+        - query: "sum:legal_tech.llm_cost{*}.rollup(sum, 86400)"
+          
+    - title: "Active Users"
+      type: query_value
+      queries:
+        - query: "count_nonzero:legal_tech.user_activity{*}"
+
+---
+# monitoring/alerts/critical-alerts.yaml
+alerts:
+  - name: "High Error Rate"
+    query: "sum:legal_tech.errors{*}.as_rate() / sum:legal_tech.requests{*}.as_rate() > 0.05"
+    message: "Error rate exceeds 5%"
+    priority: critical
+    notify:
+      - "@pagerduty-critical"
+      
+  - name: "Document Processing Backlog"
+    query: "avg:legal_tech.queue_depth{queue:document_processing} > 1000"
+    message: "Document processing queue exceeds 1000"
+    priority: high
+    notify:
+      - "@slack-platform-alerts"
+      
+  - name: "LLM Cost Spike"
+    query: "sum:legal_tech.llm_cost{*}.rollup(sum, 3600) > 500"
+    message: "LLM costs exceed $500/hour"
+    priority: medium
+    notify:
+      - "@slack-cost-alerts"
+```
+
+## Team Structure
+
+```yaml
+team_structure:
+  platform_team:
+    size: 15
+    roles:
+      - title: "Engineering Manager"
+        count: 1
+        responsibilities:
+          - "Team leadership and delivery"
+          - "Technical roadmap"
+          - "Stakeholder communication"
+          
+      - title: "Senior Backend Engineer"
+        count: 4
+        responsibilities:
+          - "Core platform development"
+          - "API design and implementation"
+          - "Performance optimization"
+          
+      - title: "AI/ML Engineer"
+        count: 3
+        responsibilities:
+          - "Agent development"
+          - "Model optimization"
+          - "Prompt engineering"
+          
+      - title: "DevOps/SRE Engineer"
+        count: 2
+        responsibilities:
+          - "Infrastructure management"
+          - "CI/CD pipelines"
+          - "Monitoring and alerting"
+          
+      - title: "Frontend Engineer"
+        count: 2
+        responsibilities:
+          - "Dashboard development"
+          - "User experience"
+          - "Integration UIs"
+          
+      - title: "QA Engineer"
+        count: 2
+        responsibilities:
+          - "Test automation"
+          - "Quality assurance"
+          - "Performance testing"
+          
+      - title: "Security Engineer"
+        count: 1
+        responsibilities:
+          - "Security architecture"
+          - "Compliance implementation"
+          - "Vulnerability management"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment Automation" icon="rocket" href="/deep-dive/deployment">
+    Deploy the platform
+  </Card>
+  <Card title="Cost Estimation" icon="calculator" href="/deep-dive/cost-estimation">
+    Plan your budget
+  </Card>
+  <Card title="Security & Compliance" icon="shield" href="/deep-dive/security-compliance">
+    Implement security controls
+  </Card>
+  <Card title="System Architecture" icon="sitemap" href="/deep-dive/architecture">
+    Deep dive architecture
+  </Card>
+</CardGroup>

@@ -56,6 +56,28 @@
         "pages": ["integrations/code-rabbit"]
       },
       {
+        "group": "Deep Dive",
+        "pages": [
+          "deep-dive/architecture",
+          "deep-dive/deployment",
+          "deep-dive/cost-estimation",
+          "deep-dive/security-compliance",
+          "deep-dive/team-training",
+          "deep-dive/phase-expansion"
+        ]
+      },
+      {
+        "group": "Litigation Force",
+        "pages": [
+          "deep-dive/litigation/overview",
+          "deep-dive/litigation/multi-agent",
+          "deep-dive/litigation/document-parsing",
+          "deep-dive/litigation/dream-team",
+          "deep-dive/litigation/neo4j-mapping",
+          "deep-dive/litigation/implementation"
+        ]
+      },
+      {
         "group": "Resources",
         "pages": ["security", "troubleshooting", "contact"]
       }
