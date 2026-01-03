@@ -69,20 +69,16 @@ export function formatSearchResults(searchResponse: SearchResponse): string {
 }
 
 /**
- * Masks an API key by showing only the first 10 characters and last 4 characters.
- * This prevents full API keys from being exposed in logs while maintaining some
- * identifiability for debugging.
- *
- * @param apiKey The API key to mask
- * @returns Masked API key string (e.g., "ctx7sk-abc...xyz1") or "[NO-API-KEY]" if no key provided
+ * Extract client info from User-Agent header.
+ * Parses formats like "Cursor/2.2.44 (darwin arm64)" or "claude-code/2.0.71"
  */
-export function maskApiKey(apiKey: string): string {
-  if (apiKey.length <= 14) {
-    // If the key is too short to mask meaningfully, just show first part
-    return apiKey.substring(0, 7) + "...";
+export function extractClientInfoFromUserAgent(
+  userAgent: string | undefined
+): { ide?: string; version?: string } | undefined {
+  if (!userAgent) return undefined;
+  const match = userAgent.match(/^([^\/\s]+)\/([^\s(]+)/);
+  if (match) {
+    return { ide: match[1], version: match[2] };
   }
-
-  const firstPart = apiKey.substring(0, 10);
-  const lastPart = apiKey.substring(apiKey.length - 4);
-  return `${firstPart}...${lastPart}`;
+  return undefined;
 }
