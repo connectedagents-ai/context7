@@ -17,6 +17,7 @@
         "group": "Overview",
         "pages": [
           "overview",
+          "about",
           "installation",
           "plans-pricing",
           "adding-libraries",
